@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pikanto/helpers/my_functions.dart';
+import 'package:pikanto/helpers/updater.dart';
 import 'widgets/loading_screen.dart';
 import 'resources/settings.dart';
 import 'screens/server_url_form.dart';
@@ -31,6 +32,11 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     _checkSettings();
     _checkForLogoImage();
+    // check for updates
+    final AppUpdater updater = AppUpdater(
+        updateFileUrl: settingsData['updateFileUrl'],
+        currentVersion: settingsData['currentAppVersion']);
+    //updater.checkForUpdate(context);
     super.initState();
     // add appthemenotifier listener
     appThemeNotifier.addListener(_updateAppTheme);

@@ -49,6 +49,9 @@ Map<String, dynamic> settingsData = {
   "mailchimpapiEmailSender": null,
   "pikantoEmailSender": null,
   "pikantoEmailToken": null,
+  "currentAppVersion": "1.0.0",
+  "updateFileUrl":
+      "https://raw.githubusercontent.com/zinando/pikanto-with-flutter/master/windows-release/update.json",
 };
 
 Map<String, String> apiEndpoints = {
