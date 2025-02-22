@@ -29,6 +29,9 @@ class AppUpdater {
         final data = jsonDecode(response.body);
         final latestVersion = Version.parse(data['latest_version']);
         final downloadUrl = data['download_url'];
+        // print('Latest version: ${latestVersion.toString()}');
+        // print('Download URL: $downloadUrl');
+        // print('Current version: $currentVersion');
 
         if (Version.parse(currentVersion) < latestVersion) {
           // Ask user for confirmation
@@ -55,17 +58,42 @@ class AppUpdater {
       BuildContext context, String latestVersion) async {
     return await showDialog<bool>(
           context: context,
+          barrierColor: Colors.black.withOpacity(0.9),
+          barrierDismissible: false,
+          barrierLabel: 'Update to latest version',
           builder: (BuildContext context) {
             return AlertDialog(
+              //add icon
+              icon: const Icon(Icons.update),
+              iconColor: Theme.of(context).colorScheme.tertiary,
+              backgroundColor: Colors.white,
+              elevation: 2.0,
+              shadowColor: Colors.grey[200],
+              surfaceTintColor: Colors.grey[200],
+              semanticLabel: 'Update to latest version',
               title: const Text("Update Available"),
+              titleTextStyle: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18),
               content: Text(
                   "A new version ($latestVersion) is available. Would you like to update now?"),
+              contentTextStyle:
+                  TextStyle(color: Colors.grey[800], fontSize: 16),
               actions: [
                 TextButton(
-                  child: const Text("No"),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.tertiary,
+                  ),
                   onPressed: () => Navigator.pop(context, false),
+                  child: const Text("No"),
                 ),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.tertiary,
+                    foregroundColor: Colors.white,
+                    elevation: 2.0,
+                  ),
                   child: const Text("Yes, update now"),
                   onPressed: () => Navigator.pop(context, true),
                 ),
@@ -128,10 +156,10 @@ class AppUpdater {
         print("Update downloaded successfully.");
 
         // Extract ZIP
-        await extractZipFile(zipFilePath, extractedPath);
+        //await extractZipFile(zipFilePath, extractedPath);
 
         // Install the update
-        await installUpdate(extractedPath, appFolderName, appExecutableName);
+        //await installUpdate(extractedPath, appFolderName, appExecutableName);
       } else {
         print("Failed to download update.");
       }

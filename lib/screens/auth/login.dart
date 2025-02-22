@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pikanto/resources/settings.dart';
 import 'package:pikanto/screens/main_layout.dart';
+import 'package:pikanto/helpers/updater.dart';
 import 'dart:convert';
 import 'register.dart';
 import 'reset_password.dart';
@@ -72,6 +73,13 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
             'userId': currentUser["userId"],
           });
           SocketManager().sendMessage('join_room', data);
+
+          // check for app update
+          final AppUpdater updater = AppUpdater(
+              updateFileUrl: settingsData['updateFileUrl'],
+              currentVersion: settingsData['currentAppVersion']);
+          print('Checking for updates...');
+          await updater.checkForUpdate(context);
 
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
