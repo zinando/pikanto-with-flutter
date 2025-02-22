@@ -36,7 +36,8 @@ class _MyAppState extends State<MyApp> {
     final AppUpdater updater = AppUpdater(
         updateFileUrl: settingsData['updateFileUrl'],
         currentVersion: settingsData['currentAppVersion']);
-    //updater.checkForUpdate(context);
+    print('Checking for updates...');
+    updater.checkForUpdate(context);
     super.initState();
     // add appthemenotifier listener
     appThemeNotifier.addListener(_updateAppTheme);
