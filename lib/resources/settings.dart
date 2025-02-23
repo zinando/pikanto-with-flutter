@@ -52,6 +52,8 @@ Map<String, dynamic> settingsData = {
   "currentAppVersion": "1.0.0",
   "updateFileUrl":
       "https://raw.githubusercontent.com/zinando/pikanto-with-flutter/master/windows-release/update.json",
+  "appFolderName": "pikanto",
+  "appExecutableName": "pikanto.exe",
 };
 
 Map<String, String> apiEndpoints = {

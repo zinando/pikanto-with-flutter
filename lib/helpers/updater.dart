@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive_io.dart';
 import 'package:process_run/shell.dart';
 import 'package:pikanto/resources/settings.dart';
+import 'package:pikanto/widgets/download_dialog.dart';
 
 class AppUpdater {
   final String updateFileUrl;
@@ -35,11 +36,20 @@ class AppUpdater {
 
         if (Version.parse(currentVersion) < latestVersion) {
           // Ask user for confirmation
-          bool userConfirmed =
-              await _showUpdateDialog(context, latestVersion.toString());
-          if (userConfirmed) {
-            await downloadAndInstallUpdate(context, downloadUrl);
-          }
+          // bool userConfirmed =
+          //     await _showUpdateDialog(context, latestVersion.toString());
+          // if (userConfirmed) {
+          //   await downloadAndInstallUpdate(context, downloadUrl);
+          // }
+          await showDialog(
+            context: context,
+            barrierColor: Colors.black.withOpacity(0.9),
+            barrierDismissible: false, // Prevent closing while downloading
+            builder: (context) => UpdateDialog(
+              downloadUrl: downloadUrl,
+              latestVersion: latestVersion,
+            ),
+          );
         } else {
           throw Exception('No updates available.');
         }
@@ -104,28 +114,30 @@ class AppUpdater {
         false; // Default to false if dialog is dismissed
   }
 
-  // method to download
+  // method to download and install update
   Future<void> downloadAndInstallUpdate(
       BuildContext context, String downloadUrl) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final zipFilePath = "${tempDir.path}/Release.zip";
-      final extractedPath = "${tempDir.path}/Release";
-      print("Download url: $downloadUrl");
-      print("Zip file path: $zipFilePath");
-      print("Extracted path: $extractedPath");
 
-      final request = http.Request('GET', Uri.parse(downloadUrl));
-      final streamedResponse = await request.send();
-      final contentLength = streamedResponse.contentLength ?? 0;
+      print("Starting download from: $downloadUrl");
 
-      if (streamedResponse.statusCode == 200) {
+      final response = await http.get(
+        Uri.parse(downloadUrl),
+        headers: {"User-Agent": "Mozilla/5.0"}, // Pretend to be a browser
+      );
+
+      if (response.statusCode == 200) {
         final file = File(zipFilePath);
         final sink = file.openWrite();
         int downloadedBytes = 0;
+        int contentLength = response.contentLength ?? 0;
 
-        // Show download progress
-        await showDialog(
+        print("File size: ${contentLength / 1024} KB");
+
+        // Show progress dialog
+        showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) {
@@ -139,7 +151,13 @@ class AppUpdater {
                       const Text("Downloading update... Please wait."),
                       const SizedBox(height: 10),
                       LinearProgressIndicator(
-                          value: downloadedBytes / contentLength),
+                        value: contentLength > 0
+                            ? downloadedBytes / contentLength
+                            : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                          "${(downloadedBytes / 1024).toStringAsFixed(2)} KB / ${(contentLength / 1024).toStringAsFixed(2)} KB"),
                     ],
                   ),
                 );
@@ -148,27 +166,57 @@ class AppUpdater {
           },
         );
 
-        await for (var chunk in streamedResponse.stream) {
-          downloadedBytes += chunk.length;
-          sink.add(chunk);
+        // Write to file in chunks
+        for (var chunk in response.bodyBytes) {
+          downloadedBytes += 1;
+          //downloadedBytes += //(chunk.length);
+          sink.add([chunk]);
+          print("Downloaded: ${downloadedBytes / 1024} KB");
+
+          // Update progress UI
+          if (context.mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                return StatefulBuilder(
+                  builder: (context, setState) {
+                    setState(() {});
+                    return AlertDialog(
+                      title: const Text("Downloading Update"),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("Downloading update... Please wait."),
+                          const SizedBox(height: 10),
+                          LinearProgressIndicator(
+                            value: contentLength > 0
+                                ? downloadedBytes / contentLength
+                                : null,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                              "${(downloadedBytes / 1024).toStringAsFixed(2)} KB / ${(contentLength / 1024).toStringAsFixed(2)} KB"),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          }
         }
 
         await sink.close();
         Navigator.pop(context); // Close progress dialog
-
-        print("Update downloaded successfully.");
-
-        // Extract ZIP
-        //await extractZipFile(zipFilePath, extractedPath);
-
-        // Install the update
-        //await installUpdate(extractedPath, appFolderName, appExecutableName);
+        print("Download completed: $zipFilePath");
       } else {
+        print("Failed to download update. HTTP ${response.statusCode}");
         throw Exception(
-            "Failed to download update. Status code: ${streamedResponse.statusCode}");
+            "Download failed with status code ${response.statusCode}");
       }
     } catch (e) {
-      print("$e");
+      print("Error downloading update: $e");
     }
   }
 
