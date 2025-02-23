@@ -78,7 +78,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
           final AppUpdater updater = AppUpdater(
               updateFileUrl: settingsData['updateFileUrl'],
               currentVersion: settingsData['currentAppVersion']);
-          print('Checking for updates...');
+          //print('Checking for updates...');
           await updater.checkForUpdate(context);
 
           Navigator.of(context).pushReplacement(

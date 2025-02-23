@@ -111,6 +111,9 @@ class AppUpdater {
       final tempDir = await getTemporaryDirectory();
       final zipFilePath = "${tempDir.path}/Release.zip";
       final extractedPath = "${tempDir.path}/Release";
+      print("Download url: $downloadUrl");
+      print("Zip file path: $zipFilePath");
+      print("Extracted path: $extractedPath");
 
       final request = http.Request('GET', Uri.parse(downloadUrl));
       final streamedResponse = await request.send();
@@ -161,10 +164,11 @@ class AppUpdater {
         // Install the update
         //await installUpdate(extractedPath, appFolderName, appExecutableName);
       } else {
-        print("Failed to download update.");
+        throw Exception(
+            "Failed to download update. Status code: ${streamedResponse.statusCode}");
       }
     } catch (e) {
-      print("Error downloading update: $e");
+      print("$e");
     }
   }
 
