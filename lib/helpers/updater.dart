@@ -59,8 +59,26 @@ class AppUpdater {
               "${Directory.current.parent.path}/pikanto_updater/app_updater.exe";
 
           // run the updater app
-          await Process.run(
-              'cmd', ['/c', 'start', '', updaterAppPath, ...args]);
+          await Process.start(
+            'cmd',
+            [
+              '/c',
+              'start',
+              '',
+              updaterAppPath,
+              '--downloadUrl',
+              downloadUrl,
+              '--latestVersion',
+              latestVersion.toString(),
+              '--appDirPath',
+              Directory.current.path,
+              '--appExecutableName',
+              settingsData['appExecutableName'],
+              '--appSettingsFilePath',
+              settingsData['settingsFilePath'],
+            ],
+            mode: ProcessStartMode.detached,
+          );
 
           // await showDialog(
           //   context: context,
