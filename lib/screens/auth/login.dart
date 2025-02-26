@@ -6,6 +6,7 @@ import 'package:pikanto/screens/main_layout.dart';
 import 'package:pikanto/helpers/updater.dart';
 import 'dart:convert';
 import 'register.dart';
+import 'package:flutter/services.dart';
 import 'reset_password.dart';
 
 class AuthenticationScreen extends StatefulWidget {
@@ -75,10 +76,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
           SocketManager().sendMessage('join_room', data);
 
           // check for app update
-          final AppUpdater updater = AppUpdater(
-              updateFileUrl: settingsData['updateFileUrl'],
-              currentVersion: settingsData['currentAppVersion']);
-          //print('Checking for updates...');
+          final AppUpdater updater = AppUpdater();
           await updater.checkForUpdate(context);
 
           Navigator.of(context).pushReplacement(
@@ -123,146 +121,156 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Center(
           child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Image.asset(
-                    settingsData['appLogo'],
-                    height: 200.0,
-                    width: 200.0,
-                  ),
-                  const SizedBox(
-                      height: 24.0), // Add space between the logo and text
-                  Text(
-                    'Login Form',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
+            child: KeyboardListener(
+              focusNode: FocusNode(),
+              onKeyEvent: (event) {
+                if (event.logicalKey == LogicalKeyboardKey.enter) {
+                  if (_formKey.currentState!.validate()) {
+                    _authenticate();
+                  }
+                }
+              },
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Image.asset(
+                      settingsData['appLogo'],
+                      height: 200.0,
+                      width: 200.0,
                     ),
-                  ),
-                  const SizedBox(
-                      height:
-                          24.0), // Add space between the app name and form fields
-                  SizedBox(
-                    width: 300, // Adjust the width as needed
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _userIdController,
-                          style: const TextStyle(
-                            color: Colors.black,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'User ID',
-                            enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary)), // Change the border color
-                            focusedBorder: const UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: Colors
-                                        .grey)), // Change the border color
-                            icon: Icon(Icons.person,
-                                color: Theme.of(context)
-                                    .primaryColor), // Change the icon color
-                            hintText: 'Your email e.g samuel@example.com',
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (String? value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16.0),
-                        TextFormField(
-                          controller: _passwordController,
-                          style: const TextStyle(
-                            color: Colors.black,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-
-                            enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary)), // Change the border color
-                            focusedBorder: const UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: Colors
-                                        .black)), // Change the border color
-                            icon: Icon(Icons.lock,
-                                color: Theme.of(context)
-                                    .primaryColor), // Change the icon color
-                            hintText:
-                                'minimum: 1 uppercase, 1 lowercase, and 1 special char.',
-                            hintStyle: const TextStyle(
-                              fontSize: 9.0,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          obscureText: _obscureText,
-                          validator: (String? value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16.0),
-                        Row(
-                          children: <Widget>[
-                            Checkbox(
-                              value: _obscureText,
-                              onChanged: (value) {
-                                setState(() {
-                                  _obscureText = value!;
-                                });
-                              },
-                            ),
-                            const Text(
-                              'Hide Password',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 32.0),
-                  if (_isLoading)
-                    loadingScreenWidgets[settingsData['loadingScreenWidget']]
-                  else
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          _authenticate();
-                        }
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.all<Color>(
-                            Theme.of(context).colorScheme.tertiary),
-                        foregroundColor: WidgetStateProperty.all<Color>(
-                            Theme.of(context).colorScheme.onPrimary),
-                      ),
-                      child: const Text('Login'),
-                    ),
-                  const SizedBox(height: 16.0),
-                  if (_errorMessage.isNotEmpty)
+                    const SizedBox(
+                        height: 24.0), // Add space between the logo and text
                     Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.red),
+                      'Login Form',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
-                  _passwordError ? _authButtons() : const SizedBox(),
-                ],
+                    const SizedBox(
+                        height:
+                            24.0), // Add space between the app name and form fields
+                    SizedBox(
+                      width: 300, // Adjust the width as needed
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _userIdController,
+                            style: const TextStyle(
+                              color: Colors.black,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'User ID',
+                              enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary)), // Change the border color
+                              focusedBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                      color: Colors
+                                          .grey)), // Change the border color
+                              icon: Icon(Icons.person,
+                                  color: Theme.of(context)
+                                      .primaryColor), // Change the icon color
+                              hintText: 'Your email e.g samuel@example.com',
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (String? value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16.0),
+                          TextFormField(
+                            controller: _passwordController,
+                            style: const TextStyle(
+                              color: Colors.black,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+
+                              enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary)), // Change the border color
+                              focusedBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                      color: Colors
+                                          .black)), // Change the border color
+                              icon: Icon(Icons.lock,
+                                  color: Theme.of(context)
+                                      .primaryColor), // Change the icon color
+                              hintText:
+                                  'minimum: 1 uppercase, 1 lowercase, and 1 special char.',
+                              hintStyle: const TextStyle(
+                                fontSize: 9.0,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            obscureText: _obscureText,
+                            validator: (String? value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16.0),
+                          Row(
+                            children: <Widget>[
+                              Checkbox(
+                                value: _obscureText,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _obscureText = value!;
+                                  });
+                                },
+                              ),
+                              const Text(
+                                'Hide Password',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32.0),
+                    if (_isLoading)
+                      loadingScreenWidgets[settingsData['loadingScreenWidget']]
+                    else
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            _authenticate();
+                          }
+                        },
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.all<Color>(
+                              Theme.of(context).colorScheme.tertiary),
+                          foregroundColor: WidgetStateProperty.all<Color>(
+                              Theme.of(context).colorScheme.onPrimary),
+                        ),
+                        child: const Text('Login'),
+                      ),
+                    const SizedBox(height: 16.0),
+                    if (_errorMessage.isNotEmpty)
+                      Text(
+                        _errorMessage,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    _passwordError ? _authButtons() : const SizedBox(),
+                  ],
+                ),
               ),
             ),
           ),

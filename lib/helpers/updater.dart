@@ -7,24 +7,25 @@ import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive_io.dart';
 import 'package:process_run/shell.dart';
 import 'package:pikanto/resources/settings.dart';
-import 'package:pikanto/widgets/download_dialog.dart';
+//import 'package:pikanto/widgets/download_dialog.dart';
 
 class AppUpdater {
-  final String updateFileUrl;
-  final String currentVersion;
-  final String fileName = 'Release.zip';
-  final String appFolderName = 'pikanto';
-  final String appExecutableName = 'pikanto.exe';
+  //final String updateFileUrl;
+  //final String currentVersion;
+  //final String fileName = 'Release.zip';
+  //final String appFolderName = settingsData['appFolderName'];
+  //final String appExecutableName = settingsData['appExecutableName'];
 
-  const AppUpdater({
-    required this.updateFileUrl,
-    required this.currentVersion,
-  });
+  // const AppUpdater({
+  //   //required this.updateFileUrl,
+  //   //required this.currentVersion,
+  // });
 
-  // method to check for update
+  // method to check for update.
+  //update file is a json file containing latest version and download url
   Future<void> checkForUpdate(BuildContext context) async {
     try {
-      final response = await http.get(Uri.parse(updateFileUrl));
+      final response = await http.get(Uri.parse(settingsData["updateFileUrl"]));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -34,22 +35,42 @@ class AppUpdater {
         // print('Download URL: $downloadUrl');
         // print('Current version: $currentVersion');
 
-        if (Version.parse(currentVersion) < latestVersion) {
+        if (Version.parse(settingsData["currentAppVersion"]) < latestVersion) {
           // Ask user for confirmation
           // bool userConfirmed =
           //     await _showUpdateDialog(context, latestVersion.toString());
           // if (userConfirmed) {
           //   await downloadAndInstallUpdate(context, downloadUrl);
           // }
-          await showDialog(
-            context: context,
-            barrierColor: Colors.black.withOpacity(0.9),
-            barrierDismissible: false, // Prevent closing while downloading
-            builder: (context) => UpdateDialog(
-              downloadUrl: downloadUrl,
-              latestVersion: latestVersion,
-            ),
-          );
+          // Run an updater app located in the parent directory of this app's directory
+          // args to supply: downloadUrl, latestVersion, current app dir path, current app executable name, current app settings file path
+          // run in a detached shell so that the app can be restarted after the update
+          // This updater app will download and install the update
+          final List<String> args = [
+            downloadUrl,
+            latestVersion.toString(),
+            Directory.current.path,
+            settingsData['appExecutableName'],
+            settingsData['settingsFilePath']
+          ];
+
+          // get the updater app path
+          final updaterAppPath =
+              "${Directory.current.parent.path}/pikanto_updater/app_updater.exe";
+
+          // run the updater app
+          await Process.run(
+              'cmd', ['/c', 'start', '', updaterAppPath, ...args]);
+
+          // await showDialog(
+          //   context: context,
+          //   barrierColor: Colors.black.withOpacity(0.9),
+          //   barrierDismissible: false, // Prevent closing while downloading
+          //   builder: (context) => UpdateDialog(
+          //     downloadUrl: downloadUrl,
+          //     latestVersion: latestVersion,
+          //   ),
+          // );
         } else {
           throw Exception('No updates available.');
         }
@@ -257,7 +278,7 @@ class AppUpdater {
 
       // update app current version in settings
       settingsData['currentAppVersion'] =
-          Version.parse(currentVersion).toString();
+          Version.parse(settingsData["currentAppVersion"]).toString();
 
       // Restart the app
       await restartApp("$oldAppPath/$appExecutableName");
