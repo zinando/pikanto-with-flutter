@@ -10,20 +10,10 @@ import 'package:pikanto/resources/settings.dart';
 //import 'package:pikanto/widgets/download_dialog.dart';
 
 class AppUpdater {
-  //final String updateFileUrl;
-  //final String currentVersion;
-  //final String fileName = 'Release.zip';
-  //final String appFolderName = settingsData['appFolderName'];
-  //final String appExecutableName = settingsData['appExecutableName'];
-
-  // const AppUpdater({
-  //   //required this.updateFileUrl,
-  //   //required this.currentVersion,
-  // });
-
   // method to check for update.
   //update file is a json file containing latest version and download url
-  Future<void> checkForUpdate(BuildContext context) async {
+  Future<String> checkForUpdate(BuildContext context) async {
+    String feedback = '';
     try {
       final response = await http.get(Uri.parse(settingsData["updateFileUrl"]));
 
@@ -36,50 +26,29 @@ class AppUpdater {
         // print('Current version: $currentVersion');
 
         if (Version.parse(settingsData["currentAppVersion"]) < latestVersion) {
-          // Ask user for confirmation
-          // bool userConfirmed =
-          //     await _showUpdateDialog(context, latestVersion.toString());
-          // if (userConfirmed) {
-          //   await downloadAndInstallUpdate(context, downloadUrl);
-          // }
-          // Run an updater app located in the parent directory of this app's directory
-          // args to supply: downloadUrl, latestVersion, current app dir path, current app executable name, current app settings file path
-          // run in a detached shell so that the app can be restarted after the update
-          // This updater app will download and install the update
-          final List<String> args = [
-            downloadUrl,
-            latestVersion.toString(),
-            Directory.current.path,
-            settingsData['appExecutableName'],
-            settingsData['settingsFilePath']
-          ];
-
           // get the updater app path
+          final appDirPath = Directory.current.path;
           final updaterAppPath =
               "${Directory.current.parent.path}/pikanto_updater/app_updater.exe";
 
           // run the updater app
-          await Process.start(
-            'cmd',
-            [
-              '/c',
-              'start',
-              '',
-              updaterAppPath,
-              '--downloadUrl',
-              downloadUrl,
-              '--latestVersion',
-              latestVersion.toString(),
-              '--appDirPath',
-              Directory.current.path,
-              '--appExecutableName',
-              settingsData['appExecutableName'],
-              '--appSettingsFilePath',
-              settingsData['settingsFilePath'],
-            ],
-            mode: ProcessStartMode.detached,
-          );
+          String command = 'cd .. && start "$updaterAppPath" '
+              '--downloadUrl "$downloadUrl" '
+              '--latestVersion "$latestVersion" '
+              '--appDirPath "$appDirPath" '
+              '--appExecutableName "${settingsData['appExecutableName']}" '
+              '--appSettingsFilePath "${settingsData['appSettingsFile']}"';
 
+          // await Process.start(
+          //   'cmd',
+          //   ['/c', command],
+          //   mode: ProcessStartMode.detached,
+          //   runInShell: true,
+          // );
+
+          await Shell().run(command);
+
+          feedback = command;
           // await showDialog(
           //   context: context,
           //   barrierColor: Colors.black.withOpacity(0.9),
@@ -96,10 +65,10 @@ class AppUpdater {
         throw Exception('Failed to check for updates.');
       }
     } catch (e) {
-      print('$e');
+      feedback = '$e';
     }
 
-    return;
+    return feedback;
   }
 
   // method to show confirmation dialogue

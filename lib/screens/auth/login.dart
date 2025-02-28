@@ -76,9 +76,14 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
           SocketManager().sendMessage('join_room', data);
 
           // check for app update
-          final AppUpdater updater = AppUpdater();
-          await updater.checkForUpdate(context);
 
+          final AppUpdater updater = AppUpdater();
+          final resp = await updater.checkForUpdate(context);
+          setState(() {
+            _errorMessage = resp;
+          });
+          await Future.delayed(const Duration(seconds: 5));
+          return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => const MainLayout(),
@@ -91,14 +96,12 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
           });
         }
       } else {
-        setState(() {
-          _errorMessage = 'Failed to authenticate. Please try again.';
-        });
+        throw Exception('Failed to authenticate. Please try again.');
       }
     } catch (error) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Connetion error.\n';
+        _errorMessage = 'Connetion error.\n$error';
         _errorMessage += error.toString();
       });
     }

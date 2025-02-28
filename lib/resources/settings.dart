@@ -5,7 +5,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
+//import 'package:provider/provider.dart';
 
 //import 'package:loading_animation_widget/loading_animation_widget.dart';
 
@@ -51,7 +51,7 @@ Map<String, dynamic> settingsData = {
   "pikantoEmailToken": null,
   "currentAppVersion": "1.0.0",
   "updateFileUrl":
-      "https://raw.githubusercontent.com/zinando/pikanto-with-flutter/master/windows-release/update.json",
+      "https://raw.githubusercontent.com/zinando/pikanto-with-flutter/master/latest_version/update.json",
   "appFolderName": "pikanto",
   "appExecutableName": "pikanto.exe",
 };
