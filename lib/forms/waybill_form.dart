@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pikanto/resources/settings.dart';
 import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
+import 'package:pikanto/widgets/file_viewer.dart';
+import 'dart:io';
 
 class WaybillForm extends StatefulWidget {
   final Map<String, dynamic> weightRecord;
@@ -27,16 +30,23 @@ class _WaybillFormState extends State<WaybillForm> {
   final _badProductFormKey = GlobalKey<FormState>();
   List<Map<String, dynamic>> goodProductsList = [];
   List<Map<String, dynamic>> badProductsList = [];
+  // add multi-file selector variable
+  final List<File> _files = [];
+  final List<String?> _filePaths = [];
   final TextEditingController _deliveryAddressController =
       TextEditingController();
   final TextEditingController _productConditionController =
       TextEditingController();
+  final TextEditingController _customer = TextEditingController();
   final TextEditingController _driverNameController = TextEditingController();
   final TextEditingController _waybillNumberController =
       TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
+
+  // file uploader button state tracker
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -61,16 +71,90 @@ class _WaybillFormState extends State<WaybillForm> {
         _productConditionController.text = _waybill['productCondition'];
         _driverNameController.text = _waybill['driverName'];
         _waybillNumberController.text = _waybill['waybillNumber'];
+        _customer.text = widget.weightRecord['customerId'].toString();
 
         goodProductsList = _goodProducts;
         badProductsList = _badProducts;
+
+        //check if waybill attachments is not empty
+        if (widget.weightRecord['waybillRecord']['attachments'] != null) {
+          final List<String> _attachments = List<String>.from(
+              widget.weightRecord['waybillRecord']['attachments']);
+          for (var attachment in _attachments) {
+            _filePaths.add('${settingsData["serverUrl"]}/$attachment');
+          }
+        }
       }
     } else {
       _deliveryAddressController.clear();
-      _productConditionController.clear();
+      _productConditionController.text = 'Good';
       _driverNameController.text = widget.weightRecord['driverName'];
       _waybillNumberController.clear();
+      _customer.text = widget.weightRecord['customerId'].toString();
+      _filePaths.clear();
     }
+  }
+
+  void showFileViewerDialog(BuildContext context, String? filePath) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            filePath!.split('\\').last,
+            style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 13.0,
+                fontWeight: FontWeight.bold),
+            maxLines: 2,
+          ),
+          content: FileViewer(filePath: filePath),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+                backgroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickFiles() async {
+    if (_isUploading) return;
+    _isUploading = true;
+
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: true, // Enable multiple file selection
+      type: FileType.custom, // Allow any file type
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'csv',
+        'txt',
+        'jpg',
+        'jpeg',
+        'png'
+      ],
+    );
+
+    if (result != null) {
+      setState(() {
+        _files.clear();
+        _filePaths.clear();
+        _files.addAll(result.paths.map((path) => File(path!)).toList());
+        _filePaths.addAll(result.paths);
+      });
+    }
+
+    _isUploading = false;
   }
 
   Future<bool> _showDeleteConfirmation(int index, bool isGoodProduct) async {
@@ -131,10 +215,13 @@ class _WaybillFormState extends State<WaybillForm> {
       // Construct the new record
       Map<String, dynamic> newRecord = {
         'vehicleId': widget.weightRecord['vehicleId'],
-        'customerId': widget.weightRecord['customerId'],
+        'customerId': _customer.text.isNotEmpty
+            ? int.parse(_customer.text)
+            : widget.weightRecord['customerId'],
         'haulierId': widget.weightRecord['haulierId'],
         'driverName': _driverNameController.text,
-        'waybillNumber': _waybillNumberController.text,
+        'waybillNumber':
+            _waybillNumberController.text, // loading request number
         'weightRecordId': widget.weightRecord['weightRecordId'],
         'deliveryAddress': _deliveryAddressController.text,
         'productCondition': _productConditionController.text,
@@ -174,6 +261,15 @@ class _WaybillFormState extends State<WaybillForm> {
             // add the new record to the list of records
             widget.onSubmit(responseBody['data'] as Map<String, dynamic>,
                 widget.recordIndex);
+
+            // send uploaded files to backend for storage if any
+            if (_files.isNotEmpty) {
+              final bool filesUploaded = await sendFileData(
+                  _files, responseBody['data']['waybillRecord']['waybillId']);
+              if (!filesUploaded) {
+                throw Exception('Failed to upload files');
+              }
+            }
           }
         }
 
@@ -184,6 +280,50 @@ class _WaybillFormState extends State<WaybillForm> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // send uploaded files to backend for storage
+  Future<bool> sendFileData(List files, int waybillId) async {
+    if (files.isEmpty) return false; // No files to upload
+
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            '${settingsData["serverUrl"]}/api/v1/waybill/upload_files/$waybillId'),
+      );
+
+      for (var file in files) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'files', // Must match the key in Flask
+            file.path!,
+          ),
+        );
+      }
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        // Check if the upload was successful
+        final Map<String, dynamic> responseBody = jsonDecode(responseData);
+        if (responseBody['status'] != 1) {
+          throw Exception(responseBody['message']);
+        } else {
+          // Files uploaded successfully
+          // add the new record to the list of records
+          widget.onSubmit(
+              responseBody['data'] as Map<String, dynamic>, widget.recordIndex);
+          return true;
+        }
+      } else {
+        throw Exception('Failed to upload files');
+      }
+    } catch (e) {
+      // print("Error uploading files: $e");
+      return false;
     }
   }
 
@@ -643,6 +783,7 @@ class _WaybillFormState extends State<WaybillForm> {
 
   @override
   Widget build(BuildContext context) {
+    //print(widget.weightRecord['waybillRecord']['attachments']);
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -690,7 +831,7 @@ class _WaybillFormState extends State<WaybillForm> {
                                 controller: _waybillNumberController,
                                 style: const TextStyle(color: Colors.black),
                                 decoration: const InputDecoration(
-                                    labelText: 'Waybill Number',
+                                    labelText: 'Loading Request Number',
                                     enabledBorder: OutlineInputBorder(
                                       borderSide:
                                           BorderSide(color: Colors.black),
@@ -701,7 +842,7 @@ class _WaybillFormState extends State<WaybillForm> {
                                     )),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please enter a Waybill Number';
+                                    return 'Please enter laoding request number';
                                   }
                                   return null; // Input is valid
                                 },
@@ -713,7 +854,7 @@ class _WaybillFormState extends State<WaybillForm> {
                                 isExpanded: true,
                                 //elevation: 0,
                                 decoration: const InputDecoration(
-                                    labelText: 'Select Product Condition',
+                                    labelText: 'Select Customer',
                                     enabledBorder: OutlineInputBorder(
                                       borderSide:
                                           BorderSide(color: Colors.black),
@@ -722,29 +863,25 @@ class _WaybillFormState extends State<WaybillForm> {
                                       borderSide:
                                           BorderSide(color: Colors.black),
                                     )),
-                                value:
-                                    _productConditionController.text.isNotEmpty
-                                        ? _productConditionController.text
-                                        : null,
-                                items: [
-                                  'Good',
-                                  'Damaged'
-                                ].map<DropdownMenuItem<String>>((String value) {
+                                value: _customer.text.isNotEmpty
+                                    ? _customer.text
+                                    : null,
+                                items: customers
+                                    .map<DropdownMenuItem<String>>((Map value) {
                                   return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
+                                    value: value['customerId'].toString(),
+                                    child: Text(value['customerName']!),
                                   );
                                 }).toList(),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please select a Product';
+                                    return 'Please select a Customer';
                                   }
                                   return null; // Input is valid
                                 },
                                 onChanged: (String? newValue) {
                                   setState(() {
-                                    _productConditionController.text =
-                                        newValue ?? '';
+                                    _customer.text = newValue ?? '';
                                   });
                                 },
                               ),
@@ -799,158 +936,378 @@ class _WaybillFormState extends State<WaybillForm> {
                             const SizedBox(height: 10),
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: Container(
-                                height: 60,
-                                width: 200.0,
-                                color: Theme.of(context).colorScheme.primary,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Container(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimary,
-                                        margin: const EdgeInsets.all(2.0),
-                                        child: Column(children: [
+                              child: Row(
+                                children: [
+                                  Container(
+                                    height: 60.0,
+                                    width: 200.0,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Container(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                            margin: const EdgeInsets.all(2.0),
+                                            child: Column(children: [
+                                              Expanded(
+                                                child: Container(
+                                                  width: double.infinity,
+                                                  alignment: Alignment.center,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
+                                                  margin:
+                                                      const EdgeInsets.all(2.0),
+                                                  child: Text(
+                                                    'Products [${goodProductsList.length}]',
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onPrimary),
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                  child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceAround,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.remove_red_eye,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                      size: 15.0,
+                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                      maxHeight: 30.0,
+                                                      maxWidth: 30.0,
+                                                    ),
+                                                    hoverColor:
+                                                        Colors.grey[200],
+                                                    tooltip: 'view poduct list',
+                                                    onPressed: () {
+                                                      _showProductDialog(
+                                                          context, true);
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.add,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                      size: 15.0,
+                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                      maxHeight: 30.0,
+                                                      maxWidth: 30.0,
+                                                    ),
+                                                    hoverColor:
+                                                        Colors.grey[200],
+                                                    tooltip: 'add poduct',
+                                                    onPressed:
+                                                        _addGoodProductForm,
+                                                  ),
+                                                ],
+                                              )),
+                                            ]),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Container(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                            margin: const EdgeInsets.all(2.0),
+                                            child: Column(children: [
+                                              Expanded(
+                                                child: Container(
+                                                  width: double.infinity,
+                                                  alignment: Alignment.center,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
+                                                  margin:
+                                                      const EdgeInsets.all(2.0),
+                                                  child: Text(
+                                                    'Damages [${badProductsList.length}]',
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onPrimary),
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                  child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceAround,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.remove_red_eye,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                      size: 15.0,
+                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                      maxHeight: 30.0,
+                                                      maxWidth: 30.0,
+                                                    ),
+                                                    hoverColor:
+                                                        Colors.grey[200],
+                                                    tooltip:
+                                                        'view damaged poduct list',
+                                                    onPressed: () {
+                                                      _showProductDialog(
+                                                          context, false);
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.add,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                      size: 15.0,
+                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                      maxHeight: 30.0,
+                                                      maxWidth: 30.0,
+                                                    ),
+                                                    hoverColor:
+                                                        Colors.grey[200],
+                                                    tooltip:
+                                                        'record damaged product',
+                                                    onPressed:
+                                                        _addBadProductForm,
+                                                  ),
+                                                ],
+                                              )),
+                                            ]),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    width: 5.0,
+                                  ),
+                                  // this next box will contain the file upload widget.
+                                  // upload button appear at the bottom while uploaded files appear at the top in a row or column depending on the screen width.
+                                  Expanded(
+                                    child: Container(
+                                      height: 120.0,
+                                      width: double.infinity,
+                                      color: Colors.white,
+                                      margin: const EdgeInsets.all(2.0),
+                                      child: Column(
+                                        children: [
                                           Expanded(
                                             child: Container(
+                                              padding:
+                                                  const EdgeInsets.all(5.0),
                                               width: double.infinity,
-                                              alignment: Alignment.center,
+                                              //alignment: Alignment.center,
                                               color: Theme.of(context)
                                                   .colorScheme
-                                                  .primary,
+                                                  .onPrimary,
                                               margin: const EdgeInsets.all(2.0),
-                                              child: Text(
-                                                'Products [${goodProductsList.length}]',
-                                                style: TextStyle(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onPrimary),
-                                              ),
+                                              child: _filePaths.isEmpty
+                                                  ? Text(
+                                                      'No files uploaded',
+                                                      style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface,
+                                                      ),
+                                                    )
+                                                  : SingleChildScrollView(
+                                                      scrollDirection: Axis
+                                                          .horizontal, // Enable horizontal scrolling
+                                                      child: Row(
+                                                        children: _filePaths
+                                                            .map((file) {
+                                                          return Container(
+                                                            width:
+                                                                60, // Adjust width as needed
+                                                            margin:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        5.0),
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(5.0),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color:
+                                                                  Colors.white,
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          10),
+                                                              boxShadow: const [
+                                                                BoxShadow(
+                                                                  color: Colors
+                                                                      .black12,
+                                                                  blurRadius: 4,
+                                                                  spreadRadius:
+                                                                      2,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            child: Column(
+                                                              mainAxisSize:
+                                                                  MainAxisSize
+                                                                      .min,
+                                                              children: [
+                                                                MouseRegion(
+                                                                  cursor:
+                                                                      SystemMouseCursors
+                                                                          .click,
+                                                                  child:
+                                                                      GestureDetector(
+                                                                    onTap: () {
+                                                                      showFileViewerDialog(
+                                                                          context,
+                                                                          file);
+                                                                    },
+                                                                    child: const Icon(
+                                                                        Icons
+                                                                            .insert_drive_file,
+                                                                        size:
+                                                                            15,
+                                                                        color: Colors
+                                                                            .blue),
+                                                                  ),
+                                                                ), // File icon
+                                                                const SizedBox(
+                                                                    height: 5),
+                                                                Text(
+                                                                  file!
+                                                                      .split(
+                                                                          '\\')
+                                                                      .last, // File name
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                  style: const TextStyle(
+                                                                      color: Colors
+                                                                          .black,
+                                                                      fontSize:
+                                                                          8,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w500),
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  maxLines: 2,
+                                                                ),
+                                                                const SizedBox(
+                                                                    height: 5),
+
+                                                                SizedBox(
+                                                                  height: 15,
+                                                                  child:
+                                                                      IconButton(
+                                                                    onPressed:
+                                                                        () {
+                                                                      setState(
+                                                                          () {
+                                                                        _filePaths
+                                                                            .remove(file); // Remove file
+                                                                        _files.removeWhere((element) =>
+                                                                            element.path ==
+                                                                            file);
+                                                                      });
+                                                                    },
+                                                                    tooltip:
+                                                                        'Delete ${file.split("\\").last}',
+                                                                    splashRadius:
+                                                                        8,
+                                                                    icon: const Icon(
+                                                                        Icons
+                                                                            .delete,
+                                                                        size:
+                                                                            8),
+                                                                    style: ElevatedButton
+                                                                        .styleFrom(
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .red,
+                                                                      foregroundColor:
+                                                                          Colors
+                                                                              .white,
+                                                                      padding: const EdgeInsets
+                                                                          .symmetric(
+                                                                          horizontal:
+                                                                              4,
+                                                                          vertical:
+                                                                              4),
+                                                                      textStyle:
+                                                                          const TextStyle(
+                                                                              fontSize: 8),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          );
+                                                        }).toList(),
+                                                      ),
+                                                    ),
                                             ),
                                           ),
-                                          Expanded(
-                                              child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceAround,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.remove_red_eye,
+                                          _isUploading
+                                              ? const SizedBox(
+                                                  height: 30.0,
+                                                  width: 30.0,
+                                                  child:
+                                                      CircularProgressIndicator())
+                                              : Container(
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .primary,
-                                                  size: 15.0,
+                                                  height: 30.0,
+                                                  width: double.infinity,
+                                                  child: TextButton.icon(
+                                                    icon: Icon(
+                                                      Icons.add,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onPrimary,
+                                                      size: 15.0,
+                                                    ),
+                                                    label: Text(
+                                                      'Upload Files',
+                                                      style: TextStyle(
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onPrimary),
+                                                    ),
+                                                    onPressed: _pickFiles,
+                                                  ),
                                                 ),
-                                                constraints:
-                                                    const BoxConstraints(
-                                                  maxHeight: 30.0,
-                                                  maxWidth: 30.0,
-                                                ),
-                                                hoverColor: Colors.grey[200],
-                                                tooltip: 'view poduct list',
-                                                onPressed: () {
-                                                  _showProductDialog(
-                                                      context, true);
-                                                },
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.add,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary,
-                                                  size: 15.0,
-                                                ),
-                                                constraints:
-                                                    const BoxConstraints(
-                                                  maxHeight: 30.0,
-                                                  maxWidth: 30.0,
-                                                ),
-                                                hoverColor: Colors.grey[200],
-                                                tooltip: 'add poduct',
-                                                onPressed: _addGoodProductForm,
-                                              ),
-                                            ],
-                                          )),
-                                        ]),
+                                        ],
                                       ),
                                     ),
-                                    Expanded(
-                                      child: Container(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimary,
-                                        margin: const EdgeInsets.all(2.0),
-                                        child: Column(children: [
-                                          Expanded(
-                                            child: Container(
-                                              width: double.infinity,
-                                              alignment: Alignment.center,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              margin: const EdgeInsets.all(2.0),
-                                              child: Text(
-                                                'Damages [${badProductsList.length}]',
-                                                style: TextStyle(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onPrimary),
-                                              ),
-                                            ),
-                                          ),
-                                          Expanded(
-                                              child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceAround,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.remove_red_eye,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary,
-                                                  size: 15.0,
-                                                ),
-                                                constraints:
-                                                    const BoxConstraints(
-                                                  maxHeight: 30.0,
-                                                  maxWidth: 30.0,
-                                                ),
-                                                hoverColor: Colors.grey[200],
-                                                tooltip:
-                                                    'view damaged poduct list',
-                                                onPressed: () {
-                                                  _showProductDialog(
-                                                      context, false);
-                                                },
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.add,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary,
-                                                  size: 15.0,
-                                                ),
-                                                constraints:
-                                                    const BoxConstraints(
-                                                  maxHeight: 30.0,
-                                                  maxWidth: 30.0,
-                                                ),
-                                                hoverColor: Colors.grey[200],
-                                                tooltip:
-                                                    'record damaged product',
-                                                onPressed: _addBadProductForm,
-                                              ),
-                                            ],
-                                          )),
-                                        ]),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

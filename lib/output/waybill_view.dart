@@ -6,19 +6,64 @@ import 'dart:typed_data';
 import 'package:pikanto/resources/settings.dart';
 import 'dart:io';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:pikanto/widgets/file_viewer.dart';
 
 class WaybillView extends StatelessWidget {
   final String? headerImageUrl;
   final Map<String, dynamic> recordData; // Waybill data
 
-  const WaybillView({
+  WaybillView({
     super.key,
     this.headerImageUrl,
     required this.recordData,
   });
 
+  final List<String> _filePaths = [];
+
+  void _populateFiles() {
+    //check if waybill attachments is not empty
+    if (recordData['attachments'] != null) {
+      final List<String> attachments =
+          List<String>.from(recordData['attachments']);
+      for (var attachment in attachments) {
+        _filePaths.add('${settingsData["serverUrl"]}/$attachment');
+      }
+    }
+  }
+
+  void showFileViewerDialog(BuildContext context, String? filePath) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            filePath!.split('\\').last,
+            style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 13.0,
+                fontWeight: FontWeight.bold),
+            maxLines: 2,
+          ),
+          content: FileViewer(filePath: filePath),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+                backgroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    print(recordData);
+    _populateFiles();
     num totalQuantity = recordData['goodProducts']
         .map<num>((row) => row['quantity'] as num)
         .reduce((num a, num b) => a + b);
@@ -93,7 +138,7 @@ class WaybillView extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   _buildInfoDoubleRow(
-                    'Waybill No',
+                    'Loading Req No',
                     recordData['waybillNumber'],
                     'Date',
                     recordData['date'],
@@ -803,13 +848,19 @@ class WaybillView extends StatelessWidget {
                             200], // Background color to make the button stand out
                         padding: const EdgeInsets.all(
                             8.0), // Padding around the button
-                        child: IconButton(
-                          onPressed: _printWaybill,
-                          icon: const Icon(
-                            Icons.print,
-                            size: 30,
-                          ), // Adjust icon color for better visibility
-                          tooltip: 'Print Waybill', // Optional tooltip
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: _printWaybill,
+                              icon: const Icon(
+                                Icons.print,
+                                size: 30,
+                              ), // Adjust icon color for better visibility
+                              tooltip: 'Print Waybill', // Optional tooltip
+                            ),
+                            const SizedBox(width: 10),
+                            _buildFileView(context, _filePaths),
+                          ],
                         ),
                       ),
                     ),
@@ -977,7 +1028,7 @@ class WaybillView extends StatelessWidget {
                   ],
                   pw.SizedBox(height: 20),
                   _buildPdfInfoDoubleRow(
-                      'Waybill No',
+                      'Loading Req No',
                       recordData['waybillNumber'].toString(),
                       'Date',
                       recordData['date'].toString(),
@@ -1926,5 +1977,111 @@ class WaybillView extends StatelessWidget {
 
     // Return the image as a pw.MemoryImage
     return pw.MemoryImage(bytes);
+  }
+
+  Widget _buildFileView(
+    BuildContext context,
+    List<String?> _filePaths,
+  ) {
+    return Expanded(
+      child: Container(
+        height: 120.0,
+        width: double.infinity,
+        color: Colors.white,
+        margin: const EdgeInsets.all(2.0),
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(5.0),
+                width: double.infinity,
+                //alignment: Alignment.center,
+                color: Theme.of(context).colorScheme.onPrimary,
+                margin: const EdgeInsets.all(2.0),
+                child: _filePaths.isEmpty
+                    ? Text(
+                        'No files attached',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(5.0),
+                            child: Text(
+                              'Attached Files',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis
+                                  .horizontal, // Enable horizontal scrolling
+                              child: Row(
+                                children: _filePaths.map((file) {
+                                  return Container(
+                                    width: 60, // Adjust width as needed
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 5.0),
+                                    padding: const EdgeInsets.all(5.0),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 4,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              showFileViewerDialog(
+                                                  context, file);
+                                            },
+                                            child: const Icon(
+                                                Icons.insert_drive_file,
+                                                size: 30,
+                                                color: Colors.blue),
+                                          ),
+                                        ), // File icon
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          file!.split('\\').last, // File name
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 3,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

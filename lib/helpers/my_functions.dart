@@ -173,6 +173,21 @@ class MyFunctions {
       return "-";
     }
   }
+
+  // Generate random order number from the current date and time
+  static String generateOrderNumber() {
+    DateTime now = DateTime.now();
+
+    // Format: YYYYMMDDHHMMSS (Year, Month, Day, Hour, Minute, Second)
+    String orderNumber = "${now.year}"
+        "${now.month.toString().padLeft(2, '0')}"
+        "${now.day.toString().padLeft(2, '0')}"
+        "${now.hour.toString().padLeft(2, '0')}"
+        "${now.minute.toString().padLeft(2, '0')}"
+        "${now.second.toString().padLeft(2, '0')}";
+
+    return orderNumber;
+  }
 }
 
 String formatDateTime(String datetimeStr) {

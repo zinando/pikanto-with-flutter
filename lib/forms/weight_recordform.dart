@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:pikanto/resources/settings.dart';
+import 'package:pikanto/helpers/my_functions.dart';
 import 'package:http/http.dart' as http;
 
 class WeightRecordForm extends StatefulWidget {
@@ -36,17 +37,22 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
       TextEditingController();
   final TextEditingController _finalWeightController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
-  final TextEditingController _productController = TextEditingController();
+  final TextEditingController _productController = TextEditingController(); //
   final TextEditingController _driverNameController = TextEditingController();
   final TextEditingController _driverPhoneController = TextEditingController();
-  final TextEditingController _vehicleNameController = TextEditingController();
+  final TextEditingController _vehicleNameController =
+      TextEditingController(); //
   final TextEditingController _haulierIdController = TextEditingController();
-  final TextEditingController _customerIdController = TextEditingController();
-  final TextEditingController _orderNumberController = TextEditingController();
+  final TextEditingController _customerIdController =
+      TextEditingController(); //
+  final TextEditingController _orderNumberController =
+      TextEditingController(); //
 
   bool _isLoading = false;
   String? _errorMessage;
   bool _isUpdate = false;
+
+  final MyFunctions myFunc = MyFunctions();
 
   @override
   void initState() {
@@ -78,13 +84,16 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
           widget.scaleReading; // Set the initial weight to the scale reading
       _finalWeightController.clear();
       _destinationController.clear();
-      _productController.clear();
+      _productController.text =
+          products.isNotEmpty ? products[0]['productDescription'] ?? '' : '';
       _driverNameController.clear();
       _driverPhoneController.clear();
-      _vehicleNameController.clear();
+      _vehicleNameController.text = 'Lurry';
       _haulierIdController.clear();
-      _customerIdController.clear();
-      _orderNumberController.clear();
+      _customerIdController.text = customers.isNotEmpty
+          ? customers[0]['customerId']?.toString() ?? ''
+          : '';
+      _orderNumberController.text = MyFunctions.generateOrderNumber();
     }
   }
 
@@ -189,8 +198,8 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
               opacity: 0.1,
               child: Image.asset(
                 'assets/logo/logo.jpeg',
-                width: MediaQuery.of(context).size.width * 0.5,
-                height: MediaQuery.of(context).size.height * 0.5,
+                width: MediaQuery.of(context).size.width * 0.3,
+                height: MediaQuery.of(context).size.height * 0.3,
               ),
             ),
           ),
@@ -243,48 +252,48 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 40),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _vehicleNameController,
-                              style: const TextStyle(color: Colors.black),
-                              decoration: const InputDecoration(
-                                  labelText: 'Enter Vehicle Name',
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  border: UnderlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  )),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a Vehicle Name';
-                                }
-                                return null; // Input is valid
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 40),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _orderNumberController,
-                              style: const TextStyle(color: Colors.black),
-                              decoration: const InputDecoration(
-                                  labelText: 'Enter Order Number',
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  border: UnderlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  )),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a Order Number';
-                                }
-                                return null; // Input is valid
-                              },
-                            ),
-                          ),
+                          // const SizedBox(width: 40),
+                          // Expanded(
+                          //   child: TextFormField(
+                          //     controller: _vehicleNameController,
+                          //     style: const TextStyle(color: Colors.black),
+                          //     decoration: const InputDecoration(
+                          //         labelText: 'Enter Vehicle Name',
+                          //         enabledBorder: OutlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         ),
+                          //         border: UnderlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         )),
+                          //     validator: (value) {
+                          //       if (value == null || value.isEmpty) {
+                          //         return 'Please enter a Vehicle Name';
+                          //       }
+                          //       return null; // Input is valid
+                          //     },
+                          //   ),
+                          // ),
+                          // const SizedBox(width: 40),
+                          // Expanded(
+                          //   child: TextFormField(
+                          //     controller: _orderNumberController,
+                          //     style: const TextStyle(color: Colors.black),
+                          //     decoration: const InputDecoration(
+                          //         labelText: 'Enter Order Number',
+                          //         enabledBorder: OutlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         ),
+                          //         border: UnderlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         )),
+                          //     validator: (value) {
+                          //       if (value == null || value.isEmpty) {
+                          //         return 'Please enter a Order Number';
+                          //       }
+                          //       return null; // Input is valid
+                          //     },
+                          //   ),
+                          // ),
                           const SizedBox(width: 20),
                         ],
                       ),
@@ -292,43 +301,43 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
                       Row(
                         children: [
                           const SizedBox(width: 20),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              //elevation: 0,
-                              decoration: const InputDecoration(
-                                  labelText: 'Select Product',
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  border: UnderlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  )),
-                              value: _productController.text.isNotEmpty
-                                  ? _productController.text
-                                  : null,
-                              items: widget.products
-                                  .where((item) => item['deleteFlag'] == 0)
-                                  .map((item) {
-                                return DropdownMenuItem<String>(
-                                  value: item['productDescription'],
-                                  child: Text(item['productDescription']!),
-                                );
-                              }).toList(),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please select a Product';
-                                }
-                                return null; // Input is valid
-                              },
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _productController.text = newValue ?? '';
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 40),
+                          // Expanded(
+                          //   child: DropdownButtonFormField<String>(
+                          //     isExpanded: true,
+                          //     //elevation: 0,
+                          //     decoration: const InputDecoration(
+                          //         labelText: 'Select Product',
+                          //         enabledBorder: OutlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         ),
+                          //         border: UnderlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         )),
+                          //     value: _productController.text.isNotEmpty
+                          //         ? _productController.text
+                          //         : null,
+                          //     items: widget.products
+                          //         .where((item) => item['deleteFlag'] == 0)
+                          //         .map((item) {
+                          //       return DropdownMenuItem<String>(
+                          //         value: item['productDescription'],
+                          //         child: Text(item['productDescription']!),
+                          //       );
+                          //     }).toList(),
+                          //     validator: (value) {
+                          //       if (value == null || value.isEmpty) {
+                          //         return 'Please select a Product';
+                          //       }
+                          //       return null; // Input is valid
+                          //     },
+                          //     onChanged: (String? newValue) {
+                          //       setState(() {
+                          //         _productController.text = newValue ?? '';
+                          //       });
+                          //     },
+                          //   ),
+                          // ),
+                          // const SizedBox(width: 40),
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               decoration: const InputDecoration(
@@ -363,38 +372,59 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
                               },
                             ),
                           ),
+                          // const SizedBox(width: 40),
+                          // Expanded(
+                          //   child: DropdownButtonFormField<String>(
+                          //     decoration: const InputDecoration(
+                          //         labelText: 'Select Customer',
+                          //         enabledBorder: OutlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         ),
+                          //         border: UnderlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         )),
+                          //     value: _customerIdController.text.isNotEmpty
+                          //         ? _customerIdController.text
+                          //         : null,
+                          //     items: widget.customers
+                          //         .where((item) => item['deleteFlag'] == 0)
+                          //         .map((item) {
+                          //       return DropdownMenuItem<String>(
+                          //         value: item['customerId'].toString(),
+                          //         child: Text(item['customerName']!),
+                          //       );
+                          //     }).toList(),
+                          //     validator: (value) {
+                          //       if (value == null || value.isEmpty) {
+                          //         return 'Please select a Customer';
+                          //       }
+                          //       return null; // Input is valid
+                          //     },
+                          //     onChanged: (String? newValue) {
+                          //       setState(() {
+                          //         _customerIdController.text = newValue ?? '';
+                          //       });
+                          //     },
+                          //   ),
+                          // ),
                           const SizedBox(width: 40),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: TextFormField(
+                              controller: _destinationController,
+                              style: const TextStyle(color: Colors.black),
                               decoration: const InputDecoration(
-                                  labelText: 'Select Customer',
+                                  labelText: 'Enter Destination',
                                   enabledBorder: OutlineInputBorder(
                                     borderSide: BorderSide(color: Colors.black),
                                   ),
                                   border: UnderlineInputBorder(
                                     borderSide: BorderSide(color: Colors.black),
                                   )),
-                              value: _customerIdController.text.isNotEmpty
-                                  ? _customerIdController.text
-                                  : null,
-                              items: widget.customers
-                                  .where((item) => item['deleteFlag'] == 0)
-                                  .map((item) {
-                                return DropdownMenuItem<String>(
-                                  value: item['customerId'].toString(),
-                                  child: Text(item['customerName']!),
-                                );
-                              }).toList(),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please select a Customer';
+                                  return 'Please enter the Destination';
                                 }
                                 return null; // Input is valid
-                              },
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _customerIdController.text = newValue ?? '';
-                                });
                               },
                             ),
                           ),
@@ -446,27 +476,27 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 40),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _destinationController,
-                              style: const TextStyle(color: Colors.black),
-                              decoration: const InputDecoration(
-                                  labelText: 'Enter Destination',
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  border: UnderlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.black),
-                                  )),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter the Destination';
-                                }
-                                return null; // Input is valid
-                              },
-                            ),
-                          ),
+                          // const SizedBox(width: 40),
+                          // Expanded(
+                          //   child: TextFormField(
+                          //     controller: _destinationController,
+                          //     style: const TextStyle(color: Colors.black),
+                          //     decoration: const InputDecoration(
+                          //         labelText: 'Enter Destination',
+                          //         enabledBorder: OutlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         ),
+                          //         border: UnderlineInputBorder(
+                          //           borderSide: BorderSide(color: Colors.black),
+                          //         )),
+                          //     validator: (value) {
+                          //       if (value == null || value.isEmpty) {
+                          //         return 'Please enter the Destination';
+                          //       }
+                          //       return null; // Input is valid
+                          //     },
+                          //   ),
+                          // ),
                           const SizedBox(width: 20),
                         ],
                       ),

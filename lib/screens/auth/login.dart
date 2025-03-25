@@ -83,7 +83,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
             _errorMessage = resp;
           });
           await Future.delayed(const Duration(seconds: 5));
-          return;
+          //return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => const MainLayout(),

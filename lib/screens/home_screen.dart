@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> _weightRecords = [];
+  //List<Map<String, dynamic>> _weightRecords = [];
 
   late String _scaleReading;
   late List<Map<String, dynamic>> notificationList;
@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // listen for the current user if necessary
     SocketManager().listenToNotifications();
     SocketManager().listenToWeightRecords();
-    fetchWeightRecords();
+    fetchResources();
     _getNotifications();
 
     _scaleReading = '0.0';
@@ -223,8 +223,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // fetch weight records from the backend
-  Future<void> fetchWeightRecordsxxx() async {
-    //final weightRecordsProvider = Provider.of<WeightRecordsProvider>(context);
+  Future<void> fetchResources() async {
+    // This function fetches app data such as weight records, customers, hauliers, products
+    await fetchWeightRecords();
     try {
       final response = await http.get(
         Uri.parse(
@@ -241,12 +242,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // check if the response status is 1
         if (responseBody['status'] == 1) {
-          // fetch all notifications
-          //_getNotifications();
-          // Save the weight record to the weightRecords list
-          List<Map<String, dynamic>> data =
-              List<Map<String, dynamic>>.from(responseBody['data']);
-          //weightRecordsProvider.setWeightRecord(data);
+          // get the data from the response body
+          // List<Map<String, dynamic>> data =
+          //     List<Map<String, dynamic>>.from(responseBody['data']);
+          // update the resources lists
           if (mounted) {
             setState(() {
               hauliers =
@@ -255,10 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   List<Map<String, dynamic>>.from(responseBody['customers']);
               products =
                   List<Map<String, dynamic>>.from(responseBody['products']);
-
-              // weightRecords = List<Map<String, dynamic>>.from(
-              //     responseBody['data']); // Update the weightRecords list
-              _weightRecords = data;
+              //_weightRecords = data;
             });
           }
         } else {
@@ -287,12 +283,12 @@ class _HomeScreenState extends State<HomeScreen> {
         int index = weightRecords.indexWhere(
             (element) => element['weightRecordId'] == record['weightRecordId']);
         weightRecords[index] = record;
-        _weightRecords = weightRecords;
+        //_weightRecords = weightRecords;
       } else {
         // Insert the weight record at the beginning of the list
         setState(() {
           weightRecords.insert(0, record);
-          _weightRecords = weightRecords;
+          //_weightRecords = weightRecords;
         });
       }
     }
@@ -347,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _updateWeightRecordList() {
     final List<Map<String, dynamic>> data =
         socketManager.weightRecordListNotifier.value;
-    _weightRecords = data;
+    //_weightRecords = data;
     weightRecords = data;
     if (mounted) {
       setState(() {});
@@ -781,8 +777,8 @@ class _RecentItemsTableScreenState extends State<RecentItemsTableScreen> {
 
   void _showContextMenu(
       BuildContext context, Map<String, dynamic> ticketData) async {
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    // final RenderBox overlay =
+    //     Overlay.of(context).context.findRenderObject() as RenderBox;
 
     final result = await showMenu(
       context: context,
