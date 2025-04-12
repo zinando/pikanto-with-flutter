@@ -78,11 +78,12 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
           // check for app update
 
           final AppUpdater updater = AppUpdater();
-          final resp = await updater.checkForUpdate(context);
-          setState(() {
-            _errorMessage = resp;
-          });
-          await Future.delayed(const Duration(seconds: 5));
+          await updater.checkForUpdate(context);
+          // final resp = await updater.checkForUpdate(context);
+          // setState(() {
+          //   _errorMessage = resp;
+          // });
+          // await Future.delayed(const Duration(seconds: 5));
           //return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(

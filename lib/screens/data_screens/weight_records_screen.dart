@@ -225,8 +225,6 @@ class _DataHistoryState extends State<DataHistory> {
   @override
   Widget build(BuildContext context) {
     final weightRecordsProvider = context.watch<WeightRecordsProvider>();
-    //print(weightRecordsProvider.weightRecordsList);
-    //print(currentUser['permissions']);
     bool _isSmallHeight = MediaQuery.of(context).size.height <= 700;
     int startIndex = _currentPage * _recordsPerPage;
     int endIndex = startIndex + _recordsPerPage;
@@ -279,11 +277,6 @@ class _DataHistoryState extends State<DataHistory> {
                           child: Container(
                             padding: const EdgeInsets.all(16.0),
                             width: 995,
-                            /*_isSmallScreen
-                                ? 710
-                                : _isMediuScreen
-                                    ? 770
-                                    : 1040,*/
                             height: _isSmallHeight
                                 ? MediaQuery.of(context).size.height * 0.65
                                 : MediaQuery.of(context).size.height * 0.70,
@@ -467,7 +460,6 @@ class _DataHistoryState extends State<DataHistory> {
                                               margin: const EdgeInsets.fromLTRB(
                                                   4.0, 0.0, 0.0, 4.0),
                                               color: Colors.grey[200],
-                                              //alignment: ,
                                               padding:
                                                   const EdgeInsets.all(8.0),
                                               child: Text(

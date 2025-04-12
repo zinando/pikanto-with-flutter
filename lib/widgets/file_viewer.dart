@@ -10,7 +10,8 @@ class FileViewer extends StatelessWidget {
   FileViewer({super.key, required this.filePath});
 
   bool isUrl(String path) {
-    return Uri.tryParse(path)?.hasScheme ?? false;
+    final uri = Uri.tryParse(path);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
   }
 
   @override
@@ -18,6 +19,7 @@ class FileViewer extends StatelessWidget {
     String extension = filePath.split('.').last.toLowerCase();
 
     if (isUrl(filePath)) {
+      // print("URL detected: $filePath");
       if (["png", "jpg", "jpeg"].contains(extension)) {
         // Show Image from URL
         return Container(
@@ -90,6 +92,7 @@ class FileViewer extends StatelessWidget {
       }
     } else {
       // Handle local files
+      // print("Local file detected: $filePath");
       if (["png", "jpg", "jpeg"].contains(extension)) {
         // Show Image
         return Container(
