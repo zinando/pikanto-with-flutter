@@ -32,7 +32,7 @@ class AppUpdater {
               "${Directory.current.parent.path}/pikanto_updater/app_updater.exe";
 
           // run the updater app
-          String command = 'cd .. && start "$updaterAppPath" '
+          String command = 'cd .. && start "" "$updaterAppPath" '
               '--downloadUrl "$downloadUrl" '
               '--latestVersion "$latestVersion" '
               '--appDirPath "$appDirPath" '

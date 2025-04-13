@@ -11,22 +11,18 @@
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
 
 [Setup]
-; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
-; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{631996E7-5B31-469D-A4EB-50B38C0FF37C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
-DisableDirPage=yes
+DefaultDirName={localappdata}\{#MyAppName}
+; DisableDirPage=yes ; Let user see the install location
 ChangesAssociations=yes
 DisableProgramGroupPage=yes
-; Remove the following line to run in administrative install mode (install for all users.)
-;PrivilegesRequired=lowest
+PrivilegesRequired=lowest
 OutputDir=C:\Users\user\Desktop\pikanto
 OutputBaseFilename=pikantosetup
 SetupIconFile=C:\Users\user\Pictures\projects\pikanto\favicon.ico
@@ -46,7 +42,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "C:\Users\user\Desktop\pikanto\Release\{#MyAppExeName}"; DestDir: "{app}\Release"; Flags: ignoreversion
 Source: "C:\Users\user\Desktop\pikanto\Release\*"; DestDir: "{app}\Release"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\Users\user\Desktop\pikanto\pikanto_updater\*"; DestDir: "{app}\pikanto_updater"; Flags: ignoreversion recursesubdirs createallsubdirs
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocExt}\OpenWithProgids"; ValueType: string; ValueName: "{#MyAppAssocKey}"; ValueData: ""; Flags: uninsdeletevalue
@@ -61,4 +56,3 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\Release\{#MyAppExeName}"; T
 
 [Run]
 Filename: "{app}\Release\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
