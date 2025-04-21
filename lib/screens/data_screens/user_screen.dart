@@ -520,6 +520,14 @@ class _UserScreenState extends State<UserScreen> {
                                                     child: Text('Admin'),
                                                   ),
                                                   DropdownMenuItem(
+                                                    value: 'whse_user',
+                                                    child: Text('WHSEUser'),
+                                                  ),
+                                                  DropdownMenuItem(
+                                                    value: 'approver',
+                                                    child: Text('Approver'),
+                                                  ),
+                                                  DropdownMenuItem(
                                                     value: 'super',
                                                     child: Text('Super Admin'),
                                                   ),
@@ -950,6 +958,10 @@ class _AddUserDialogState extends State<AddUserDialog> {
                             DropdownMenuItem(
                               value: 'approver',
                               child: Text('Approver'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'whse_user',
+                              child: Text('WHSEUser'),
                             ),
                           ],
                           onChanged: (value) {

@@ -15,11 +15,20 @@ class _TabViewScreenState extends State<TabViewScreen> {
   // List of menu titles
   final List<String> menuTitles = [
     "Search Weight Records",
-    if (currentUser['permissions']['canChangeUserPassword']) ...[
+    if (currentUser['permissions']['canChangeUserPassword'])
       "Change User Password",
-      "Audit Trail",
-      "User Permissions",
-    ]
+    if (currentUser['permissions']['canViewAuditTrail']) "Audit Trail",
+    if (currentUser['permissions']['canViewAppSettings']) "User Permissions",
+  ];
+
+  final List ScreenViews = [
+    const SearchView(),
+    if (currentUser['permissions']['canChangeUserPassword'])
+      const ChangeUserPassword(),
+    if (currentUser['permissions']['canViewAuditTrail'])
+      const AuditTrailWidget(),
+    if (currentUser['permissions']['canViewAppSettings'])
+      const PermissionsWidget(),
   ];
 
   // Current selected menu index
@@ -84,17 +93,18 @@ class _TabViewScreenState extends State<TabViewScreen> {
 
   // Function to build the view based on selected menu
   Widget _buildSelectedView() {
-    switch (selectedMenuIndex) {
-      case 0:
-        return const Center(child: SearchView());
-      case 1:
-        return const Center(child: ChangeUserPassword());
-      case 2:
-        return const Center(child: AuditTrailWidget());
-      case 3:
-        return const Center(child: PermissionsWidget());
-      default:
-        return Container();
-    }
+    return Center(child: ScreenViews[selectedMenuIndex]);
+    // switch (selectedMenuIndex) {
+    //   case 0:
+    //     return Center(child: ScreenViews[selectedMenuIndex]);
+    //   case 1:
+    //     return const Center(child: ChangeUserPassword());
+    //   case 2:
+    //     return const Center(child: AuditTrailWidget());
+    //   case 3:
+    //     return const Center(child: PermissionsWidget());
+    //   default:
+    //     return Container();
+    // }
   }
 }

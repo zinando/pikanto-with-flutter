@@ -13,7 +13,13 @@ class PermissionsWidget extends StatefulWidget {
 
 class _PermissionsWidgetState extends State<PermissionsWidget> {
   List<Map<String, dynamic>> userPermissions = [];
-  final List<String> userTypes = ['user', 'admin', 'super', 'approver'];
+  final List<String> userTypes = [
+    'user',
+    'admin',
+    'super',
+    'approver',
+    'whse_user'
+  ];
   Map<String, dynamic>? selectedPermissions;
   String selectedUserType = 'user';
   bool isLoading = false;

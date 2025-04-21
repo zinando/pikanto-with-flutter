@@ -49,7 +49,7 @@ Map<String, dynamic> settingsData = {
   "mailchimpapiEmailSender": null,
   "pikantoEmailSender": null,
   "pikantoEmailToken": null,
-  "currentAppVersion": "0.0.1",
+  "currentAppVersion": "0.0.3",
   "updateFileUrl":
       "https://raw.githubusercontent.com/zinando/pikanto-with-flutter/master/latest_version/update.json",
   "appFolderName": "pikanto",
