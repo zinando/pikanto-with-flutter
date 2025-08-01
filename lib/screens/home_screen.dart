@@ -25,9 +25,11 @@ class _HomeScreenState extends State<HomeScreen> {
   late List<Map<String, dynamic>> notificationList;
   late int notificationCount;
   Timer? _timer;
-  late SerialPort _port;
+  late SerialPort? _port;
   final List<String> _availablePorts = SerialPort.availablePorts;
-  StreamSubscription<String>? _subscription;
+  // StreamSubscription<String>? _subscription;
+  StreamSubscription<Uint8List>? _subscription;
+  // _ForwardingStreamSubscription<Uint8List, String>? _subscription;
   final TextEditingController _outputController = TextEditingController();
   final TextEditingController _vehicleIdController = TextEditingController();
 
@@ -351,49 +353,87 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _configureSerialPort() {
-    String portName = settingsData['scalePort'];
+    void _handleScaleData(String rawData) {
+      if (rawData.isEmpty) {
+        return;
+      }
+      final formatted = MyFunctions.formatScaleReading(rawData);
+      setState(() {
+        _scaleReading = formatted;
+        settingsData['scaleReading'] = formatted;
+        _outputController.text = formatted;
+      });
+    }
+
+    void _updateReadingError(String error) {
+      setState(() {
+        _scaleReading = error.toString();
+        settingsData['scaleReading'] = '0.0';
+        _outputController.text = _scaleReading;
+      });
+    }
+
+    final portName = settingsData['scalePort'];
     _port = SerialPort(portName);
 
     if (!_availablePorts.contains(portName)) {
-      setState(() {
-        settingsData['scaleReading'] = '0.0';
-        _scaleReading = 'Error: Port $portName does not exist';
-      });
+      _updateReadingError('Port $portName does not exist');
       return;
     }
 
     try {
-      _port.openReadWrite();
+      final config = SerialPortConfig()
+        ..baudRate =
+            int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800
+        ..parity = parseParity(settingsData['scaleParity'])
+        ..bits = settingsData['scaleDataBits'] ?? 7
+        ..stopBits = (settingsData['scaleStopBits'] == 2) ? 2 : 1;
+      config.setFlowControl(SerialPortFlowControl.none);
 
-      if (_port.isOpen) {
-        // Write data to port
-        //int writtenBytes = _port.write(MyFunctions.stringToUint8List('Hello World!'));
+      _port?.config = config;
+      _port?.openReadWrite();
 
-        // Read data from port
-        String scaleData = '';
-        SerialPortReader reader = SerialPortReader(_port, timeout: 1000);
-        Stream<String> dataStream = reader.stream.map((Uint8List data) {
-          return String.fromCharCodes(data);
+      if (!_port!.isOpen) {
+        _updateReadingError('Failed to open port $portName');
+        return;
+      }
+
+      try {
+        SerialPortReader reader = SerialPortReader(_port!, timeout: 1000);
+        String buffer = '';
+        _subscription = reader.stream.listen((Uint8List data) {
+          buffer += String.fromCharCodes(data);
+
+          if (buffer.contains('\r')) {
+            final parts = buffer.split('\r');
+            for (int i = 0; i < parts.length - 1; i++) {
+              if (parts[i].isEmpty) continue; // Skip empty parts
+              _handleScaleData(parts[i]);
+            }
+            buffer = parts.last;
+          } else if (buffer.contains('\n')) {
+            final parts = buffer.split('\n');
+            for (int i = 0; i < parts.length - 1; i++) {
+              if (parts[i].isEmpty) continue; // Skip empty parts
+              _handleScaleData(parts[i]);
+            }
+            buffer = parts.last;
+          }
+          // handle input without delimeter
+          _handleScaleData(String.fromCharCodes(data));
+        }, onError: (error) {
+          _updateReadingError('Stream error: $error');
+          _cleanupSerialPort(); // ✅ Close on stream error
+        }, onDone: () {
+          _cleanupSerialPort(); // ✅ Also clean up if stream ends
         });
-        _subscription = dataStream.listen((String data) {
-          scaleData = data;
-          setState(() {
-            _scaleReading = MyFunctions.formatScaleReading(scaleData);
-            settingsData['scaleReading'] =
-                _scaleReading; // save to settings data
-            _outputController.text =
-                _scaleReading; // Update the TextEditingController
-          });
-        });
-      } else {
-        throw Exception('port $portName could not be opened.');
+      } catch (e) {
+        _cleanupSerialPort(); // ✅ Subscription or stream error
+        rethrow;
       }
     } catch (e) {
-      setState(() {
-        settingsData['scaleReading'] = '0.0';
-        _scaleReading = e.toString();
-        _outputController.text = _scaleReading;
-      });
+      _cleanupSerialPort(); // Ensure we clean up if there's an error
+      _updateReadingError(e.toString());
     }
   }
 
@@ -407,13 +447,29 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _cleanupSerialPort() {
+    try {
+      _subscription?.cancel();
+    } catch (_) {}
+
+    try {
+      if (_port?.isOpen ?? false) {
+        _port?.close();
+      }
+    } catch (_) {}
+
+    _subscription = null;
+    _port = null;
+  }
+
   // Properly dispose the timer on screen exit
   @override
   void dispose() {
+    _cleanupSerialPort();
     _timer?.cancel();
     currentPage = '';
     _subscription?.cancel();
-    _port.close();
+    _port?.close();
     _vehicleIdController.dispose();
     super.dispose();
   }

@@ -9,6 +9,7 @@ import 'package:windows_notification/notification_message.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_libserialport/flutter_libserialport.dart';
 
 class MyFunctions {
   static void showSnackBar(BuildContext context, String message) {
@@ -358,5 +359,67 @@ Future<void> copyLogoToAppDirectory() async {
     } catch (e) {
       // do nothing here
     }
+  }
+}
+
+String extractWeightFromBytesxxx(Uint8List data) {
+  // Optionally: print raw chars for debugging
+  // print('Raw bytes: $data');
+  // print('Chars: ${data.map((b) => String.fromCharCode(b)).join()}');
+
+  // Find the range you want to extract (e.g., last 5 digits before CR)
+  // This part is based on your data pattern. For example:
+  // Data sample: [41, 56, 32, 32, 32, 32, 52, 55, 48, 32, 32, 32, 32, 48, 48, 13]
+  //
+  // These represent:
+  //   ' )', '8', '    ', '470', '    ', '00', CR
+
+  // We'll extract characters between index 6 and 9
+  // print('Data : ${data}'); // Debugging line
+  List<int> relevantBytes = data.sublist(6, 9 + 1); // 52, 55, 48 = '470'
+
+  String numericPart = String.fromCharCodes(relevantBytes).trim();
+
+  // You can now format this (e.g., divide by 100)
+  try {
+    int raw = int.parse(numericPart);
+    return (raw / 100).toStringAsFixed(2); // e.g., 4.70
+  } catch (_) {
+    return '0.0';
+  }
+}
+
+String extractWeightFromBytes(Uint8List data) {
+  // Check if data has enough bytes
+  if (data.length < 10) {
+    return '0.0'; // or throw an exception / log a warning
+  }
+
+  try {
+    List<int> relevantBytes = data.sublist(6, 10); // 6 to 9 inclusive
+    String numericPart = String.fromCharCodes(relevantBytes).trim();
+
+    int raw = int.parse(numericPart);
+    return (raw / 100).toStringAsFixed(2); // e.g., 4.70
+  } catch (e) {
+    return '0.0';
+  }
+}
+
+int parseParity(dynamic parityValue) {
+  String value = parityValue.toString().toLowerCase();
+  switch (value) {
+    case 'even':
+      return SerialPortParity.even;
+    case 'odd':
+      return SerialPortParity.odd;
+    case 'none':
+      return SerialPortParity.none;
+    case 'mark':
+      return SerialPortParity.mark;
+    case 'space':
+      return SerialPortParity.space;
+    default:
+      return SerialPortParity.none;
   }
 }
