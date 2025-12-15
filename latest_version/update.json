@@ -1,4 +1,5 @@
 {
-    "latest_version": "0.0.4",
-    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.0.4/pikanto.zip"
+    "latest_version": "0.0.5",
+    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.0.5/pikanto.zip",
+    "description": "Created alternative function for detecting weight data from serial port."
 }

@@ -28,7 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late SerialPort? _port;
   final List<String> _availablePorts = SerialPort.availablePorts;
   // StreamSubscription<String>? _subscription;
-  StreamSubscription<Uint8List>? _subscription;
+  // StreamSubscription<Uint8List>? _subscription;
+  StreamSubscription<dynamic>? _subscription;
   // _ForwardingStreamSubscription<Uint8List, String>? _subscription;
   final TextEditingController _outputController = TextEditingController();
   final TextEditingController _vehicleIdController = TextEditingController();
@@ -352,25 +353,45 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  SerialPortConfig buildPortConfig(Map<String, dynamic> settingsData) {
+    final config = SerialPortConfig()
+      ..baudRate =
+          int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800
+      ..parity = parseParity(settingsData['scaleParity'])
+      ..bits = settingsData['scaleDataBits'] ?? 7
+      ..stopBits = (settingsData['scaleStopBits'] == 2) ? 2 : 1;
+
+    config.setFlowControl(SerialPortFlowControl.none);
+    return config;
+  }
+
+  void _updateReadingError(String error) {
+    setState(() {
+      _scaleReading = error.toString();
+      settingsData['scaleReading'] = '0.0';
+      _outputController.text = _scaleReading;
+    });
+  }
+
   void _configureSerialPort() {
     void _handleScaleData(String rawData) {
       if (rawData.isEmpty) {
         return;
       }
       final formatted = MyFunctions.formatScaleReading(rawData);
+
+      // if the formatted reading is not a valid number, clean up serial port and try with _configureSerialPort_alt()
+      if (!MyFunctions.isNumber(formatted)) {
+        _cleanupSerialPort();
+        _configureSerialPortAlt();
+        return;
+      }
       setState(() {
         _scaleReading = formatted;
         settingsData['scaleReading'] = formatted;
         _outputController.text = formatted;
       });
-    }
-
-    void _updateReadingError(String error) {
-      setState(() {
-        _scaleReading = error.toString();
-        settingsData['scaleReading'] = '0.0';
-        _outputController.text = _scaleReading;
-      });
+      // print('working with plan A');
     }
 
     final portName = settingsData['scalePort'];
@@ -382,20 +403,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      final config = SerialPortConfig()
-        ..baudRate =
-            int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800
-        ..parity = parseParity(settingsData['scaleParity'])
-        ..bits = settingsData['scaleDataBits'] ?? 7
-        ..stopBits = (settingsData['scaleStopBits'] == 2) ? 2 : 1;
-      config.setFlowControl(SerialPortFlowControl.none);
+      // final config = SerialPortConfig()
+      //   ..baudRate =
+      //       int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800
+      //   ..parity = parseParity(settingsData['scaleParity'])
+      //   ..bits = settingsData['scaleDataBits'] ?? 7
+      //   ..stopBits = (settingsData['scaleStopBits'] == 2) ? 2 : 1;
+      // config.setFlowControl(SerialPortFlowControl.none);
 
-      _port?.config = config;
+      _port?.config = buildPortConfig(settingsData);
       _port?.openReadWrite();
 
       if (!_port!.isOpen) {
-        _updateReadingError('Failed to open port $portName');
-        return;
+        // _updateReadingError('Failed to open port $portName');
+        // return;
+        throw Exception('Failed to open port $portName');
       }
 
       try {
@@ -428,9 +450,184 @@ class _HomeScreenState extends State<HomeScreen> {
           _cleanupSerialPort(); // ✅ Also clean up if stream ends
         });
       } catch (e) {
-        _cleanupSerialPort(); // ✅ Subscription or stream error
-        rethrow;
+        // _cleanupSerialPort(); // ✅ Subscription or stream error
+        // rethrow;
+        throw Exception('Failed to create SerialPortReader: $e');
       }
+    } catch (e) {
+      _cleanupSerialPort(); // Ensure we clean up if there's an error
+      _updateReadingError(e.toString());
+    }
+  }
+
+  void _configureSerialPortyyy() {
+    List<int> buffer = [];
+
+    String formatWeight(String raw) {
+      // Step 1: Keep only digits, decimal point, and spaces
+      final cleaned = raw.replaceAll(RegExp(r'[^0-9. ]'), '').trim();
+
+      // Step 2: Split by spaces
+      final parts = cleaned.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+
+      // Step 3: Find first valid number (non-zero or decimal)
+      for (var part in parts) {
+        // Ensure part looks like a number
+        if (RegExp(r'^[0-9]+(\.[0-9]+)?$').hasMatch(part)) {
+          // If it's not just zeros (e.g. "0", "00", "0.00")
+          if (double.tryParse(part) != null && double.parse(part) != 0.0) {
+            return part;
+          }
+        }
+      }
+
+      // Step 4: If none found, return "0"
+      return "0.0";
+    }
+
+    void _parseFrame(List<int> frameBytes) {
+      if (frameBytes.length < 17) {
+        // print("Invalid frame: $frameBytes");
+        return;
+      }
+      // print("Received frame: $frameBytes");
+
+      // Extract weight characters (positions 8 and 9 like Python)
+      final weightChars = frameBytes
+          .sublist(0, 17)
+          .map((b) => String.fromCharCode(b))
+          .join()
+          .trim();
+
+      final weight = weightChars.isEmpty ? "0.0" : formatWeight(weightChars);
+      // print("[Parsed Weight] -> $weight");
+
+      setState(() {
+        _scaleReading = weight;
+        settingsData['scaleReading'] = weight;
+        _outputController.text = weight;
+      });
+    }
+
+    final portName = settingsData['scalePort'];
+    _port = SerialPort(portName);
+
+    try {
+      _port?.config = buildPortConfig(settingsData);
+      _port?.openReadWrite();
+
+      SerialPortReader reader = SerialPortReader(_port!, timeout: 1000);
+
+      _subscription = reader.stream.listen((Uint8List data) {
+        for (var byte in data) {
+          buffer.add(byte);
+
+          if (byte == 0x0D) {
+            // Carriage return = end of frame
+            // print("Frame: $buffer");
+            _parseFrame(buffer);
+            buffer.clear();
+          }
+        }
+      }, onError: (err) {
+        // print("Stream error: $err");
+      });
+    } catch (e) {
+      // print("Error: $e");
+    }
+  }
+
+  void _configureSerialPortAlt() {
+    List<int> buffer = [];
+
+    String formatWeight(String raw) {
+      final cleaned = raw.replaceAll(RegExp(r'[^0-9. ]'), '').trim();
+      final parts = cleaned.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+      // print('working with plan B');
+      for (var part in parts) {
+        if (RegExp(r'^[0-9]+(\.[0-9]+)?$').hasMatch(part)) {
+          if (double.tryParse(part) != null && double.parse(part) != 0.0) {
+            return part;
+          }
+        }
+      }
+      return "0.0";
+    }
+
+    void _parseFrame(List<int> frameBytes) {
+      if (frameBytes.length < 5) {
+        // print("⚠️ Invalid frame (too short): $frameBytes");
+        return;
+      }
+
+      final weightChars =
+          frameBytes.map((b) => String.fromCharCode(b)).join().trim();
+      final weight = weightChars.isEmpty ? "0.0" : formatWeight(weightChars);
+
+      // print("[Parsed Weight] -> $weight");
+
+      if (mounted) {
+        setState(() {
+          _scaleReading = weight;
+          settingsData['scaleReading'] = weight;
+          _outputController.text = weight;
+        });
+      }
+    }
+
+    final portName = settingsData['scalePort'];
+    if (portName == null || portName.isEmpty) {
+      _updateReadingError('No serial port defined in settings.');
+      return;
+    }
+
+    try {
+      _port = SerialPort(portName);
+
+      if (_port == null) {
+        throw Exception('Failed to create SerialPort instance for $portName');
+      }
+
+      // Configure port
+      try {
+        _port!.config = buildPortConfig(settingsData);
+      } catch (e) {
+        throw Exception('Failed to configure port $portName -> $e');
+      }
+
+      // Try to open port
+      try {
+        _port!.openReadWrite();
+      } catch (e) {
+        throw Exception('Could not open port $portName -> $e');
+      }
+
+      if (!_port!.isOpen) {
+        throw Exception('Port $portName is not open.');
+      }
+
+      // Start reader
+      SerialPortReader reader;
+      try {
+        reader = SerialPortReader(_port!, timeout: 1000);
+      } catch (e) {
+        throw Exception('Failed to create SerialPortReader -> $e');
+      }
+
+      _subscription = reader.stream.listen((Uint8List data) {
+        for (var byte in data) {
+          buffer.add(byte);
+          if (byte == 0x0D) {
+            // End of frame
+            _parseFrame(buffer);
+            buffer.clear();
+          }
+        }
+      }, onError: (err) {
+        throw Exception('Stream error: $err');
+      }, onDone: () {
+        throw Exception('Reader stream closed unexpectedly.');
+      });
     } catch (e) {
       _cleanupSerialPort(); // Ensure we clean up if there's an error
       _updateReadingError(e.toString());
