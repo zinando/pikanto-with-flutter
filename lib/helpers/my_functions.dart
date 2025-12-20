@@ -11,6 +11,8 @@ import 'package:window_manager/window_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 
+Process? _serialServiceProcess;
+
 class MyFunctions {
   static void showSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -359,6 +361,57 @@ Future<void> copyLogoToAppDirectory() async {
     } catch (e) {
       // do nothing here
     }
+  }
+}
+
+Future<bool> serialServiceRunning() async {
+  try {
+    final result = await Process.run(
+      'tasklist',
+      [],
+    );
+
+    return result.stdout
+        .toString()
+        .toLowerCase()
+        .contains('serial_service.exe');
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<void> startSerialService() async {
+  if (await serialServiceRunning()) {
+    return; // Already running
+  }
+
+  _serialServiceProcess = await Process.start(
+    'serial_service.exe',
+    [],
+    runInShell: true,
+    mode: ProcessStartMode.detached,
+  );
+
+  // Optional: give Flask time to bind port
+  await Future.delayed(const Duration(milliseconds: 500));
+}
+
+Future<void> stopSerialService() async {
+  try {
+    // Preferred: kill tracked process
+    if (_serialServiceProcess != null) {
+      _serialServiceProcess!.kill(ProcessSignal.sigterm);
+      _serialServiceProcess = null;
+      return;
+    }
+
+    // Fallback: kill by name (safety net)
+    await Process.run(
+      'taskkill',
+      ['/F', '/IM', 'serial_service.exe'],
+    );
+  } catch (_) {
+    // Ignore shutdown errors
   }
 }
 

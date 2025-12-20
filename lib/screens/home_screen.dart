@@ -63,8 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
     notificationList = []; //notificationsList;
 
     updateUI();
-    _configureSerialPort();
-    // _pollScaleData();
+    // _configureSerialPort();
+    pollScaleData();
     notificationCount = notificationList
         .where((element) => element['status'] == 'unread')
         .toList()
@@ -374,6 +374,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return config;
   }
 
+  Map<String, dynamic> getPortConfig() {
+    return {
+      "port": settingsData['scalePort'],
+      "baudrate":
+          int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800,
+      "bytesize": settingsData['scaleDataBits'] ?? 7,
+      "parity": settingsData['scaleParity'],
+      "stopbits": (settingsData['scaleStopBits'] == 2) ? 2 : 1
+    };
+  }
+
   void _updateReadingError(String error) {
     setState(() {
       _scaleReading = error.toString();
@@ -382,282 +393,33 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // void _configureSerialPortxxx() {
-  //   void _handleScaleData(String rawData) {
-  //     if (rawData.isEmpty) {
-  //       return;
-  //     }
-  //     final formatted = MyFunctions.formatScaleReading(rawData);
-  //     print('Formatted reading: $formatted');
+  Future<void> pollScaleData() async {
+    // This function can be used to poll scale data if needed
+    _pollingTimer =
+        Timer.periodic(const Duration(milliseconds: 200), (timer) async {
+      final Map<String, dynamic> portConfig = getPortConfig();
+      final res = await http.post(Uri.parse("http://127.0.0.1:5050/read"),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+            //'Authorization': 'Bearer ${settingsData["token"]}',
+          },
+          body: jsonEncode(portConfig));
 
-  //     // if the formatted reading is not a valid number, clean up serial port and try with _configureSerialPort_alt()
-  //     if (!MyFunctions.isNumber(formatted)) {
-  //       _cleanupSerialPort();
-  //       _configureSerialPortAlt();
-  //       return;
-  //     }
-  //     setState(() {
-  //       _scaleReading = formatted;
-  //       settingsData['scaleReading'] = formatted;
-  //       _outputController.text = formatted;
-  //     });
-  //     print('working with plan A');
-  //   }
-
-  //   final portName = settingsData['scalePort'];
-  //   _port = SerialPort(portName);
-
-  //   if (!_availablePorts.contains(portName)) {
-  //     _updateReadingError('Port $portName does not exist');
-  //     return;
-  //   }
-
-  //   try {
-  //     // final config = SerialPortConfig()
-  //     //   ..baudRate =
-  //     //       int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800
-  //     //   ..parity = parseParity(settingsData['scaleParity'])
-  //     //   ..bits = settingsData['scaleDataBits'] ?? 7
-  //     //   ..stopBits = (settingsData['scaleStopBits'] == 2) ? 2 : 1;
-  //     // config.setFlowControl(SerialPortFlowControl.none);
-
-  //     _port?.config = buildPortConfig(settingsData);
-  //     _port?.openReadWrite();
-
-  //     if (!_port!.isOpen) {
-  //       // _updateReadingError('Failed to open port $portName');
-  //       // return;
-  //       throw Exception('Failed to open port $portName');
-  //     }
-
-  //     try {
-  //       SerialPortReader reader = SerialPortReader(_port!, timeout: 1000);
-  //       String buffer = '';
-  //       _subscription = reader.stream.listen((Uint8List data) {
-  //         buffer += String.fromCharCodes(data);
-
-  //         print('Raw data from scale: $buffer');
-
-  //         if (buffer.contains('\r')) {
-  //           print('Processing data with carriage return delimiter');
-  //           final parts = buffer.split('\r');
-  //           for (int i = 0; i < parts.length - 1; i++) {
-  //             if (parts[i].isEmpty) continue; // Skip empty parts
-  //             _handleScaleData(parts[i]);
-  //           }
-  //           buffer = parts.last;
-  //         } else if (buffer.contains('\n')) {
-  //           print('Processing data with newline delimiter');
-  //           final parts = buffer.split('\n');
-  //           for (int i = 0; i < parts.length - 1; i++) {
-  //             if (parts[i].isEmpty) continue; // Skip empty parts
-  //             _handleScaleData(parts[i]);
-  //           }
-  //           buffer = parts.last;
-  //         }
-  //         // handle input without delimeter
-  //         _handleScaleData(String.fromCharCodes(data));
-  //       }, onError: (error) {
-  //         _updateReadingError('Stream error: $error');
-  //         _cleanupSerialPort(); // ✅ Close on stream error
-  //       }, onDone: () {
-  //         _cleanupSerialPort(); // ✅ Also clean up if stream ends
-  //       });
-  //     } catch (e) {
-  //       // _cleanupSerialPort(); // ✅ Subscription or stream error
-  //       // rethrow;
-  //       throw Exception('Failed to create SerialPortReader: $e');
-  //     }
-  //   } catch (e) {
-  //     _cleanupSerialPort(); // Ensure we clean up if there's an error
-  //     _updateReadingError(e.toString());
-  //     print('Error configuring serial port: $e');
-  //   }
-  // }
-
-  // void _configureSerialPortkkk() {
-  //   void _handleScaleData(String line) {
-  //     line = line.trim();
-  //     if (line.isEmpty) return;
-
-  //     // Example: "S S     125.430 kg"
-  //     final match = RegExp(r'^(S|U)\s+S\s+(-?\d+(\.\d+)?)').firstMatch(line);
-
-  //     if (match == null) return;
-
-  //     final stability = match.group(1); // S or U
-  //     final weight = match.group(2)!;
-
-  //     // Accept only stable readings
-  //     if (stability != 'S') return;
-
-  //     setState(() {
-  //       _scaleReading = weight;
-  //       settingsData['scaleReading'] = weight;
-  //       _outputController.text = weight;
-  //     });
-
-  //     debugPrint('IND780 Stable Weight → $weight');
-  //   }
-
-  //   String buffer = '';
-  //   final portName = settingsData['scalePort'];
-  //   // print('Configuring serial port: $portName');
-  //   _port = SerialPort(portName);
-
-  //   if (!_availablePorts.contains(portName)) {
-  //     _updateReadingError('Port $portName does not exist');
-  //     return;
-  //   }
-  //   _port?.config = buildPortConfig(settingsData);
-  //   _port?.openReadWrite();
-
-  //   if (!_port!.isOpen) {
-  //     _updateReadingError('Failed to open port $portName');
-  //     return;
-  //     // throw Exception('Failed to open port $portName');
-  //   }
-  //   print('Serial port $portName opened successfully.');
-
-  //   SerialPortReader reader = SerialPortReader(_port!, timeout: 1000);
-  //   _subscription = reader.stream.listen((Uint8List data) {
-  //     buffer += String.fromCharCodes(data);
-
-  //     buffer = buffer.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-
-  //     while (buffer.contains('\n')) {
-  //       print('Processing line from scale data: $buffer');
-  //       final idx = buffer.indexOf('\n');
-  //       final line = buffer.substring(0, idx);
-  //       buffer = buffer.substring(idx + 1);
-  //       _handleScaleData(line);
-  //     }
-
-  //     if (buffer.length > 256) buffer = '';
-  //   }, onError: (e) {
-  //     _updateReadingError('Serial error: $e');
-  //     _cleanupSerialPort();
-  //   });
-  // }
-
-  // void _configureSerialPortppppppp() {
-  //   void _processLikePython(String line) {
-  //     if (line.isEmpty) return;
-
-  //     // Keep digits only (same as Python regex)
-  //     final clean = line.replaceAll(RegExp(r'[^0-9]'), '');
-
-  //     // Length filter (same logic you used)
-  //     if (clean.length <= 1 || clean.length >= 9) return;
-
-  //     final value = double.tryParse(clean);
-
-  //     print('Raw scale data: $line → Cleaned: $clean → Parsed: $value');
-  //     if (value == null) return;
-
-  //     // Adjust divisor (IND780 decimals)
-  //     final weight = (value / 100).toStringAsFixed(2);
-
-  //     setState(() {
-  //       _scaleReading = weight;
-  //       settingsData['scaleReading'] = weight;
-  //       _outputController.text = weight;
-  //     });
-
-  //     debugPrint('IND780 → $weight');
-  //   }
-
-  //   String buffer = '';
-  //   final portName = settingsData['scalePort'];
-  //   // print('Configuring serial port: $portName');
-  //   _port = SerialPort(portName);
-
-  //   if (!_availablePorts.contains(portName)) {
-  //     _updateReadingError('Port $portName does not exist');
-  //     return;
-  //   }
-  //   // Critical: force DTR/RTS
-  //   // _port!.dtr = true;
-  //   // _port!.rts = true;
-  //   _port?.config = buildPortConfig(settingsData);
-  //   _port?.openReadWrite();
-
-  //   if (!_port!.isOpen) {
-  //     _updateReadingError('Failed to open port $portName');
-  //     return;
-  //     // throw Exception('Failed to open port $portName');
-  //   }
-  //   print('Serial port $portName opened successfully.');
-
-  //   SerialPortReader reader = SerialPortReader(_port!, timeout: 1000);
-
-  //   _subscription = reader.stream.listen((Uint8List data) {
-  //     print('Raw data chunk from scale: $data');
-  //     buffer += latin1.decode(data, allowInvalid: true);
-
-  //     buffer = buffer.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-  //     print('Buffer data: $buffer');
-
-  //     while (buffer.contains('\n')) {
-  //       final idx = buffer.indexOf('\n');
-  //       final line = buffer.substring(0, idx).trim();
-  //       buffer = buffer.substring(idx + 1);
-
-  //       _processLikePython(line);
-  //     }
-
-  //     if (buffer.length > 512) buffer = '';
-  //   });
-  // }
-
-  // Future<void> _configureSerialPort() async {
-  //   String portName = settingsData['scalePort'];
-  //   try {
-  //     _port = SerialPort(
-  //       portName,
-  //       openNow: false,
-  //       BaudRate: 4800,
-  //       ByteSize: 7,
-  //       Parity: DCB_PARITY.EVENPARITY,
-  //       StopBits: DCB_STOP_BITS.ONESTOPBIT,
-  //     );
-  //     // print('Serial port $portName created.');
-  //     _port!.open();
-  //     print('attempting to open Serial port $portName');
-
-  //     if (!_port!.isOpened) {
-  //       throw Exception("Failed to open $portName");
-  //     }
-  //     print('Serial port $portName opened successfully.');
-
-  //     // Enable DTR and RTS — critical for IND780 ASCII mode
-  //     _port!.setFlowControlSignal(SerialPort.SETDTR);
-  //     print('DTR set on port $portName.');
-  //     _port!.setFlowControlSignal(SerialPort.SETRTS);
-  //     print('RTS set on port $portName.');
-
-  //     // var read = _port!.readBytesUntil(Uint8List.fromList("T".codeUnits));
-  //     final delimiter = Uint8List.fromList(["T".codeUnitAt(0)]);
-  //     Uint8List? read = await _port!.readBytesUntil(delimiter);
-  //     if (read.isNotEmpty) {
-  //       String data = String.fromCharCodes(read);
-  //       print('Data from scale: $data');
-  //     }
-  //     print('Listening for scale data...');
-  //   } catch (e) {
-  //     print("Error opening serial port: $e");
-  //     _cleanupSerialPort();
-  //   }
-  // }
-
-  // void _pollScaleData() {
-  //   // This function can be used to poll scale data if needed
-  //   _pollingTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
-  //     if (_port?.isOpen != true) return;
-  //     final cmd = Uint8List.fromList('SIR\r\n'.codeUnits);
-  //     _port!.write(cmd);
-  //   });
-  // }
+      if (res.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(res.body);
+        if (data.containsKey("weight")) {
+          if (mounted) {
+            setState(() {
+              _scaleReading = data['weight'].toString();
+              settingsData['scaleReading'] = data['weight'].toString();
+              _outputController.text = data['weight'].toString();
+            });
+          }
+        }
+        return data["value"];
+      }
+    });
+  }
 
   void _configureSerialPort() {
     List<int> buffer = [];

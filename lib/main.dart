@@ -14,6 +14,8 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding.instance.addObserver(AppLifecycleHandler());
   // runApp(const MyApp());
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(create: (_) => WeightRecordsProvider()),
@@ -127,6 +129,15 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+class AppLifecycleHandler with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      stopSerialService();
+    }
+  }
+}
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -147,6 +158,9 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 3));
     await _checkInternetConnection();
     await _checkBackendUrl();
+
+    // start serial service
+    await startSerialService();
 
     // Navigate to the login screen after initialization
     Navigator.of(context).pushReplacement(MaterialPageRoute(
