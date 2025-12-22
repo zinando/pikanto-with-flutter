@@ -576,7 +576,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _subscription?.cancel();
     _port?.close();
     _vehicleIdController.dispose();
-    stopSerialService();
     super.dispose();
   }
 
