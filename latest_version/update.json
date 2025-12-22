@@ -1,5 +1,5 @@
 {
-    "latest_version": "0.0.9",
-    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.0.9/pikanto.zip",
+    "latest_version": "0.1.0",
+    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.1.0/pikanto.zip",
     "description": "This version fixes issues with reading weight from the local server, and shutting down the local server when the app is closed."
 }

@@ -136,6 +136,7 @@ class _MyAppState extends State<MyApp> {
 class AppWindowListener extends WindowListener {
   @override
   void onWindowClose() async {
+    print("I am shutting down now...");
     stopSerialService();
     await windowManager.destroy();
   }
