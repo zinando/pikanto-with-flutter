@@ -1,5 +1,5 @@
 {
-    "latest_version": "0.0.7",
-    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.0.7/pikanto.zip",
-    "description": "This version uses python server to fetch serial data."
+    "latest_version": "0.0.8",
+    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.0.8/pikanto.zip",
+    "description": "This version tries to fix error with not polling weight data from the python local server."
 }
