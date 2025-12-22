@@ -12,10 +12,14 @@ import 'package:provider/provider.dart';
 import 'screens/auth/login.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  WidgetsBinding.instance.addObserver(AppLifecycleHandler());
+  await windowManager.ensureInitialized();
+
+  windowManager.addListener(AppWindowListener());
+
   // runApp(const MyApp());
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(create: (_) => WeightRecordsProvider()),
@@ -129,12 +133,11 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class AppLifecycleHandler with WidgetsBindingObserver {
+class AppWindowListener extends WindowListener {
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached) {
-      stopSerialService();
-    }
+  void onWindowClose() async {
+    stopSerialService();
+    await windowManager.destroy();
   }
 }
 

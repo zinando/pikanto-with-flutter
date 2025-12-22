@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _timer;
   Timer? _pollingTimer;
   late SerialPort? _port;
+  bool _pollInProgress = false;
   // final List<String> _availablePorts = SerialPort.availablePorts;
   // StreamSubscription<String>? _subscription;
   // StreamSubscription<Uint8List>? _subscription;
@@ -375,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Map<String, dynamic> getPortConfig() {
-    return {
+    final config = <String, dynamic>{
       "port": settingsData['scalePort'],
       "baudrate":
           int.tryParse(settingsData['scaleBaudRate'].toString()) ?? 4800,
@@ -383,6 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
       "parity": settingsData['scaleParity'],
       "stopbits": (settingsData['scaleStopBits'] == 2) ? 2 : 1
     };
+    return config;
   }
 
   void _updateReadingError(String error) {
@@ -395,27 +397,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> pollScaleData() async {
     // This function can be used to poll scale data if needed
+
     _pollingTimer =
         Timer.periodic(const Duration(milliseconds: 200), (timer) async {
-      final Map<String, dynamic> portConfig = getPortConfig();
-      final res = await http.post(Uri.parse("http://127.0.0.1:5050/read"),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-            //'Authorization': 'Bearer ${settingsData["token"]}',
-          },
-          body: jsonEncode(portConfig));
+      if (_pollInProgress) return;
+      _pollInProgress = true;
 
-      if (res.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(res.body);
-        if (data.containsKey("weight")) {
+      try {
+        final Map<String, dynamic> portConfig = getPortConfig();
+        final res = await http.post(Uri.parse("http://127.0.0.1:5050/read"),
+            headers: <String, String>{
+              'Content-Type': 'application/json; charset=UTF-8',
+              //'Authorization': 'Bearer ${settingsData["token"]}',
+            },
+            body: jsonEncode(portConfig));
+
+        if (res.statusCode == 200) {
+          final Map<String, dynamic> data = jsonDecode(res.body);
+          if (data.containsKey("weight")) {
+            if (mounted) {
+              setState(() {
+                _scaleReading = data['weight'].toString();
+                settingsData['scaleReading'] = data['weight'].toString();
+                _outputController.text = data['weight'].toString();
+              });
+            }
+          }
+        } else if (res.statusCode == 400) {
+          final Map<String, dynamic> data = jsonDecode(res.body);
           if (mounted) {
             setState(() {
-              _scaleReading = data['weight'].toString();
-              settingsData['scaleReading'] = data['weight'].toString();
-              _outputController.text = data['weight'].toString();
+              _outputController.text = data['error'];
             });
           }
         }
+      } catch (e) {
+        timer.cancel();
+        if (mounted) {
+          setState(() {
+            _outputController.text = 'Serial service is offline';
+          });
+        }
+      } finally {
+        _pollInProgress = false;
       }
     });
   }
@@ -552,6 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _subscription?.cancel();
     _port?.close();
     _vehicleIdController.dispose();
+    stopSerialService();
     super.dispose();
   }
 
