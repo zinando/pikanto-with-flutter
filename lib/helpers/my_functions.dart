@@ -389,29 +389,61 @@ Future<void> startSerialService() async {
     'serial_service.exe',
     [],
     runInShell: true,
-    mode: ProcessStartMode.detached,
+    mode: ProcessStartMode.normal,
   );
 
   // Optional: give Flask time to bind port
   await Future.delayed(const Duration(milliseconds: 500));
 }
 
-Future<void> stopSerialService() async {
+void stopSerialService() {
+  // await ensureAppIsClosed('serial_service.exe');
   try {
+    _serialServiceProcess?.kill();
+    _serialServiceProcess = null;
     // Preferred: kill tracked process
-    if (_serialServiceProcess != null) {
-      _serialServiceProcess!.kill(ProcessSignal.sigterm);
-      _serialServiceProcess = null;
-      return;
-    }
+    // if (_serialServiceProcess != null) {
+    //   // _serialServiceProcess!.kill(ProcessSignal.sigterm);
+    //   _serialServiceProcess!.kill();
+    //   _serialServiceProcess = null;
+    //   return;
+    // }
 
-    // Fallback: kill by name (safety net)
-    await Process.run(
-      'taskkill',
-      ['/F', '/IM', 'serial_service.exe'],
-    );
+    // // Fallback: kill by name (safety net)
+    // await Process.run(
+    //   'taskkill',
+    //   ['/F', '/IM', 'serial_service.exe'],
+    // );
   } catch (_) {
     // Ignore shutdown errors
+  }
+}
+
+Future<void> closeApp(String executableName) async {
+  try {
+    if (Platform.isWindows) {
+      // Use taskkill to force close the app
+      await Process.run('taskkill', ['/F', '/IM', executableName]);
+    } else {
+      // Use pkill for macOS/Linux
+      await Process.run('pkill', [executableName]);
+    }
+  } catch (e) {
+    print("Error closing app: $e");
+  }
+}
+
+Future<bool> isProcessRunning(String executableName) async {
+  var result = await Process.run('tasklist', []);
+  return result.stdout.toString().contains(executableName);
+}
+
+Future<void> ensureAppIsClosed(String executableName) async {
+  await closeApp(executableName);
+  await Future.delayed(const Duration(seconds: 3)); // Wait briefly
+  while (await isProcessRunning(executableName)) {
+    await closeApp(executableName);
+    await Future.delayed(const Duration(seconds: 2));
   }
 }
 

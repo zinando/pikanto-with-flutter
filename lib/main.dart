@@ -18,6 +18,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
 
+  await killAnyOldSerialService();
+
   windowManager.addListener(AppWindowListener());
 
   // runApp(const MyApp());
@@ -136,9 +138,23 @@ class _MyAppState extends State<MyApp> {
 class AppWindowListener extends WindowListener {
   @override
   void onWindowClose() async {
-    print("I am shutting down now...");
+    // print("I am shutting down now...");
     stopSerialService();
+    await Future.delayed(const Duration(seconds: 2));
     await windowManager.destroy();
+  }
+}
+
+Future<void> killAnyOldSerialService() async {
+  if (!Platform.isWindows) return;
+
+  try {
+    await Process.run(
+      'taskkill',
+      ['/F', '/IM', 'serial_service.exe'],
+    );
+  } catch (_) {
+    // Ignore if not running
   }
 }
 
