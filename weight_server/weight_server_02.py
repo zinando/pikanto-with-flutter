@@ -7,6 +7,7 @@ import os
 import atexit
 from flask import Flask, request, jsonify
 from threading import Lock
+import time
 
 def app_dir():
     if getattr(sys, 'frozen', False):
@@ -118,26 +119,19 @@ def read_weight():
                 raise Exception("Offline")
 
             if ser.in_waiting > 0:
-                raw = ser.readline()
-                line = raw.decode("cp1252", errors="ignore").strip()
-
-                if line:
-                    # FILTER 1: digits only
-                    clean_val = re.sub(r"[^0-9]", "", line)
-
-                    # FILTER 2: length guard
-                    if clean_val and 1 < len(clean_val) < 9:
-                        try:
-                            val = float(clean_val) / 100.0
-                            formatted = "{:,.2f}".format(val)
-                            return jsonify({
-                                "status": "ok",
-                                "weight": formatted
-                            })
-                        except ValueError:
-                            pass
-
-            raise Exception("No valid data detected")
+                raw = ser.read(ser.in_waiting).decode("cp1252", errors="ignore")
+                # regex: finds numbers including decimals
+                matches = re.findall(r"[-+]?\d*\.\d+|\d+", raw)
+                if matches:
+                    # Pick the longest match to avoid status digits (e.g., '0')
+                    val = max(matches, key=len)
+                    num = float(val)
+                    formatted = "{:,.2f}".format(num)
+                    return jsonify({
+                        "status": "ok",
+                        "weight": formatted
+                    })
+            time.sleep(0.1)
     except Exception as e:
         return jsonify({
             "status": "error",

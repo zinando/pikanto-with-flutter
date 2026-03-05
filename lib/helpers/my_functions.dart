@@ -381,6 +381,7 @@ Future<bool> serialServiceRunning() async {
 }
 
 Future<void> startSerialService() async {
+  return; // do not activate serial service
   if (await serialServiceRunning()) {
     return; // Already running
   }

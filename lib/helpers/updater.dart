@@ -31,6 +31,9 @@ class AppUpdater {
           final updaterAppPath =
               "${Directory.current.parent.path}/pikanto_updater/app_updater.exe";
 
+          // Kill serial service first
+          await Process.run('taskkill', ['/F', '/IM', 'serial_service.exe']);
+
           // run the updater app
           String command = 'cd .. && start "" "$updaterAppPath" '
               '--downloadUrl "$downloadUrl" '

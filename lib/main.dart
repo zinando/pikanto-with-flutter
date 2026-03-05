@@ -194,9 +194,32 @@ class _SplashScreenState extends State<SplashScreen> {
     if (connectivityResult == ConnectivityResult.none) {
       // Show error message
       setState(() {
-        _errorMessages.add('No internet connection.');
+        _errorMessages.add(
+            'Seems there is no internet connection. Checking further to confirm...');
       });
-      await Future.delayed(const Duration(seconds: 5));
+      await Future.delayed(const Duration(seconds: 2));
+      try {
+        final response = await http
+            .get(Uri.parse("https://clients3.google.com/generate_204"));
+        if (response.statusCode == 204) {
+          setState(() {
+            _errorMessages.add(
+                'There is internet connection. Proceeding with startup...');
+          });
+          await Future.delayed(const Duration(seconds: 5));
+        } else {
+          setState(() {
+            _errorMessages.add('Internet connection failure confirmed!');
+          });
+          await Future.delayed(const Duration(seconds: 5));
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessages.add(
+              'Error with internet connection. Please check your internet settings. $e');
+        });
+        await Future.delayed(const Duration(seconds: 5));
+      }
     } else {
       // Hide error message
       setState(() {
@@ -214,15 +237,15 @@ class _SplashScreenState extends State<SplashScreen> {
         _errorMessages.add(
             'You will be directed to the server URL form screen in a few seconds.');
       });
-      await Future.delayed(const Duration(seconds: 8));
+      await Future.delayed(const Duration(seconds: 5));
     } else {
       // Check if serverUrl is reachable
       try {
         final response = await http.get(Uri.parse(settingsData['serverUrl']));
         if (response.statusCode == 200) {
-          setState(() {
-            //_errorMessages.add('Server URL is reachable.');
-          });
+          // setState(() {
+          //   //_errorMessages.add('Server URL is reachable.');
+          // });
         } else {
           setState(() {
             _errorMessages.add(

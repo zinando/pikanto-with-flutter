@@ -79,12 +79,6 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
 
           final AppUpdater updater = AppUpdater();
           await updater.checkForUpdate(context);
-          // final resp = await updater.checkForUpdate(context);
-          // setState(() {
-          //   _errorMessage = resp;
-          // });
-          // await Future.delayed(const Duration(seconds: 5));
-          //return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => const MainLayout(),
@@ -113,6 +107,15 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
     //Future.delayed(const Duration(seconds: 2));
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult == ConnectivityResult.none) {
+      try {
+        final response = await http
+            .get(Uri.parse("https://clients3.google.com/generate_204"));
+        if (response.statusCode == 204) {
+          return true;
+        } else {}
+      } catch (e) {
+        //error msg here
+      }
       return false;
     }
     return true;

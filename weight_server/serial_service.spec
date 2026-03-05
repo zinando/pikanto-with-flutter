@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['weight_server_01.py'],
+    ['weight_server_02.py'],
     pathex=[],
     binaries=[],
     datas=[],
