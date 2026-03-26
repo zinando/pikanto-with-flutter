@@ -97,12 +97,30 @@ class _WeightRecordFormState extends State<WeightRecordForm> {
     }
   }
 
+  Future<void> _updateFormWeightReading() async {
+    // This function updates the initial weight and final weight
+    //controlers with the current scale reading from settings data
+    if (widget.weightRecord != null) {
+      setState(() {
+        _finalWeightController.text = settingsData['scaleReading'];
+      });
+    } else {
+      setState(() {
+        _initialWeightController.text = settingsData['scaleReading'];
+      });
+    }
+  }
+
   Future<void> _submitForm() async {
+    // Update form weight reading first
+    await _updateFormWeightReading();
+
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
+      await Future.delayed(const Duration(seconds: 1));
 
       // Construct the new record
       Map<String, dynamic> newRecord = {

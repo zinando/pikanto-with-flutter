@@ -1,5 +1,5 @@
 {
-    "latest_version": "0.1.3",
-    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.1.3/pikanto.zip",
-    "description": "This version tried to fix issues with checking for internet network availability, and disabling serial service activation."
+    "latest_version": "0.1.4",
+    "download_url": "https://github.com/zinando/deployed_apps/releases/download/v0.1.4/pikanto.zip",
+    "description": "In this release, the scale data in the weight record form is updated with the current scale reading as soon as the user clicks the submit button. This addresses the issue of changes/fluctuations in scale reading after weight capture."
 }
